@@ -1,0 +1,85 @@
+Resumen de la estructura actual:
+globals.css
+Aquí defines los estilos globales, incluyendo las directivas de Tailwind (@tailwind base; @tailwind components; @tailwind utilities;) y cualquier estilo base personalizado que necesites.
+
+layout.tsx
+Este archivo define el layout global que se aplicará a todas las páginas. Aquí se importa el globals.css y se pueden definir fuentes, clases y otros ajustes globales. Es el "shell" de la aplicación.
+
+page.tsx
+Es la página de inicio o la página raíz de la aplicación. Aquí se utiliza el layout definido en layout.tsx.
+
+Plan para empezar a construir la aplicación
+Definir las secciones principales de la aplicación:
+Dado que estamos trabajando en una SaaS multi-tenant, probablemente necesitemos páginas o secciones para:
+
+Página pública: Muestra la carta del comercio (menú, categorías y productos).
+Sección de Configuración (config): Donde el owner puede crear/editar/eliminar categorías y productos.
+Sección de Admin: Para que el superusuario gestione la creación y eliminación de comercios (tenants).
+Plan de trabajo por microtareas:
+
+Microtarea 1: Estructura del Layout Global
+Revisar y, si es necesario, ajustar el archivo layout.tsx para asegurarnos de que el diseño base (por ejemplo, un header, un footer o un contenedor central) se aplique de forma consistente en toda la aplicación.
+
+Microtarea 2: Página de Inicio (Home Page)
+Crear o modificar page.tsx para que muestre un ejemplo representativo de la carta del comercio, usando componentes modernos y responsivos con Tailwind CSS.
+
+Microtarea 3: Crear páginas para Login, Config y Admin
+
+Crear un componente de Login (si aún no existe) que se integre con el layout.
+Crear una página de Config para el owner.
+Crear una página de Admin para el superusuario. Cada uno de estos módulos podrá tener su propio layout o se podrán utilizar sub-layouts anidados según se requiera.
+Microtarea 4: Integrar Navegación y Rutas
+Usar el enrutamiento de Next.js para navegar entre las secciones (por ejemplo, rutas dinámicas basadas en subdominios, etc.). Esto lo gestionaremos en el archivo layout.tsx o mediante componentes específicos.
+
+Microtarea 5: Aplicar Estilos Modernos
+Revisar y mejorar los estilos con Tailwind CSS (o incluso considerar DaisyUI o cualquier otro plugin de Tailwind que se integre bien) para lograr un diseño futurista, centrado y responsivo. Ajustar los estilos de la tarjeta de Login, por ejemplo, y otros componentes para que se vean estéticos y modernos.
+
+Pasos iniciales:
+
+Verifica que tu archivo globals.css esté correctamente importado en layout.tsx.
+Asegúrate de que en tailwind.config.js la propiedad content incluya todas las rutas relevantes (por ejemplo, "./src/**/*.{js,ts,jsx,tsx}").
+Confirma que tu archivo postcss.config.mjs exporta la configuración correcta:
+js
+Copiar
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+};
+Documentación y seguimiento:
+Te recomiendo seguir la documentación oficial de Next.js y la documentación de Tailwind CSS para conocer en detalle las nuevas funcionalidades y mejores prácticas.
+
+Ahora que tenemos la estructura base y el plan, ¿por cuál microtarea te gustaría comenzar? Por ejemplo, ¿quieres revisar y ajustar el layout global (archivo layout.tsx), o prefieres empezar por definir la página de inicio (page.tsx)? ¡Avísame y procedemos paso a paso!
+
+
+NEXT_PUBLIC_API_URL=https://cartaenlinea-67dbc62791d3.herokuapp.com/
+```)
+
+
+globals.css
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
