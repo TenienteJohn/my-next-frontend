@@ -1,8 +1,11 @@
+// src/app/admin/commerces/page.tsx
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import axios from "axios";
-import Logout from "@/components/Logout";
+import AnimatedLayout from "@/components/AnimatedLayout";
+import AdminNavbar from "@/components/admin/AdminNavbar";
 import CommerceList from "@/components/admin/CommerceList";
 
 interface Commerce {
@@ -52,32 +55,48 @@ export default function AdminCommercesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Panel de Administración</h1>
-        <Logout />
-      </div>
-
-      {error ? (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-          {error}
-          <button
-            onClick={fetchCommerces}
-            className="ml-4 px-3 py-1 bg-red-500 text-white rounded"
+    <>
+      <AdminNavbar />
+      <AnimatedLayout>
+        <div className="min-h-screen bg-gray-100 p-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
           >
-            Reintentar
-          </button>
+            <h1 className="text-3xl font-bold text-gray-800 mb-6">Panel de Comercios</h1>
+          </motion.div>
+
+          {error ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+            >
+              {error}
+              <button
+                onClick={fetchCommerces}
+                className="ml-4 px-3 py-1 bg-red-500 text-white rounded"
+              >
+                Reintentar
+              </button>
+            </motion.div>
+          ) : isLoading ? (
+            <div className="flex justify-center py-8">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="animate-spin h-10 w-10 border-4 border-blue-500 rounded-full border-t-transparent"
+              />
+            </div>
+          ) : (
+            <CommerceList
+              commerces={commerces}
+              setCommerces={setCommerces}
+            />
+          )}
         </div>
-      ) : isLoading ? (
-        <div className="text-center py-8">
-          <p className="text-lg text-gray-600">Cargando comercios...</p>
-        </div>
-      ) : (
-        <CommerceList
-          commerces={commerces}
-          setCommerces={setCommerces}
-        />
-      )}
-    </div>
+      </AnimatedLayout>
+    </>
   );
 }

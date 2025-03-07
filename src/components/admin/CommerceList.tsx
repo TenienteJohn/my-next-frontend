@@ -1,10 +1,11 @@
+// CommerceList.tsx con animaciones pero manteniendo la lógica original
 'use client';
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import axios from "axios";
+import { motion } from "framer-motion";
 import CommerceForm from "./CommerceForm";
 import CommerceEditModal from "./CommerceEditModal";
-import { Button } from "@/components/ui/button";
 
 interface Commerce {
   id: number;
@@ -21,20 +22,18 @@ interface CommerceListProps {
 }
 
 export default function CommerceList({ commerces: initialCommerces, setCommerces: parentSetCommerces }: CommerceListProps) {
-  // Si se pasan comercios como prop, úsalos; de lo contrario, inicializa un estado local
+  // MANTENER TODO EL CÓDIGO ORIGINAL PERO AGREGAR MOTION COMPONENTS
   const [localCommerces, setLocalCommerces] = useState<Commerce[]>(initialCommerces || []);
   const [isLoading, setIsLoading] = useState<boolean>(!initialCommerces);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadingForId, setUploadingForId] = useState<number | null>(null);
 
-  // Estado para el modal de edición
+  // Mantener los estados originales para edición y eliminación
   const [editingCommerce, setEditingCommerce] = useState<Commerce | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-
-  // Estado para el modal de eliminación
-  const [commerceToDelete, setCommerceToDelete] = useState<Commerce | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [commerceToDelete, setCommerceToDelete] = useState<Commerce | null>(null);
   const [deletePassword, setDeletePassword] = useState('');
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -48,13 +47,14 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   // Referencia a los comercios correctos
   const displayCommerces = initialCommerces || localCommerces;
 
-  // Cargar comercios si no se proporcionaron como props
+  // MANTENER EL CÓDIGO ORIGINAL DE USEEFFECT
   useEffect(() => {
     if (!initialCommerces) {
       fetchCommerces();
     }
   }, [initialCommerces]);
 
+  // MANTENER EL CÓDIGO ORIGINAL DE FETCHCOMMERCES
   const fetchCommerces = async () => {
     try {
       setIsLoading(true);
@@ -82,9 +82,7 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  /**
-   * Función para agregar un comercio a la lista luego de ser creado.
-   */
+  // MANTENER EL CÓDIGO ORIGINAL DE HANDLECOMMERCECREATED
   const handleCommerceCreated = (newCommerce: any) => {
     console.log("Comercio creado:", newCommerce);
 
@@ -104,9 +102,7 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     fetchCommerces();
   };
 
-  /**
-   * Función para manejar la selección de archivos para el logo
-   */
+  // MANTENER EL CÓDIGO ORIGINAL DE HANDLEFILECHANGE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, commerceId: number) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
@@ -114,9 +110,7 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  /**
-   * Función para subir el logo
-   */
+  // MANTENER EL CÓDIGO ORIGINAL DE HANDLELOGOUPLOAD
   const handleLogoUpload = async (commerceId: number, file: File) => {
     try {
       setUploadingForId(commerceId);
@@ -171,36 +165,25 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  /**
-   * Función para abrir el modal de edición
-   */
+  // MANTENER TODAS LAS FUNCIONES ORIGINALES Y AGREGAR MOTION
   const handleEditClick = (commerce: Commerce) => {
     setEditingCommerce(commerce);
     setShowEditModal(true);
   };
 
-  /**
-   * Función para manejar la actualización de un comercio
-   */
   const handleCommerceUpdated = (updatedCommerce: Commerce) => {
-    // Actualizar el estado local con los datos actualizados
     updateCommerces(prevCommerces =>
       prevCommerces.map(commerce =>
         commerce.id === updatedCommerce.id ? updatedCommerce : commerce
       )
     );
 
-    // Cerrar el modal de edición
     setShowEditModal(false);
     setEditingCommerce(null);
 
-    // Recargar la lista para asegurar consistencia
     fetchCommerces();
   };
 
-  /**
-   * Función para mostrar el modal de confirmación de eliminación
-   */
   const handleDeleteClick = (commerce: Commerce) => {
     setCommerceToDelete(commerce);
     setShowDeleteModal(true);
@@ -208,9 +191,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     setDeleteError(null);
   };
 
-  /**
-   * Función para confirmar la eliminación de un comercio
-   */
   const confirmDelete = async () => {
     if (!commerceToDelete) return;
 
@@ -265,9 +245,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  /**
-   * Función para cancelar la eliminación
-   */
   const cancelDelete = () => {
     setShowDeleteModal(false);
     setCommerceToDelete(null);
@@ -276,12 +253,24 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   };
 
   if (isLoading) {
-    return <div className="text-center p-8">Cargando comercios...</div>;
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="text-center p-8"
+      >
+        Cargando comercios...
+      </motion.div>
+    );
   }
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+      >
         {error}
         <button
           onClick={() => setError(null)}
@@ -289,7 +278,7 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
         >
           <span className="text-red-500">×</span>
         </button>
-      </div>
+      </motion.div>
     );
   }
 
@@ -299,13 +288,32 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       <CommerceForm onCommerceCreated={handleCommerceCreated} />
 
       {/* Lista de comercios */}
-      <h2 className="text-2xl font-bold mt-8 mb-4">Comercios Registrados</h2>
+      <motion.h2
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-2xl font-bold mt-8 mb-4"
+      >
+        Comercios Registrados
+      </motion.h2>
+
       {displayCommerces.length === 0 ? (
-        <p className="text-gray-500">No hay comercios registrados. Crea uno nuevo usando el formulario de arriba.</p>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-gray-500"
+        >
+          No hay comercios registrados. Crea uno nuevo usando el formulario de arriba.
+        </motion.p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {displayCommerces.map((commerce) => (
-            <div key={commerce.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+          {displayCommerces.map((commerce, index) => (
+            <motion.div
+              key={commerce.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+            >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <h2 className="text-xl font-semibold">{commerce.business_name}</h2>
@@ -365,30 +373,36 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
               </div>
 
               <div className="flex justify-end space-x-2 mt-4">
-                <a
+                <motion.a
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   href={`https://${commerce.subdomain}.tudominio.com`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-3 py-1 text-xs text-blue-600 border border-blue-600 rounded hover:bg-blue-50"
                 >
                   Visitar
-                </a>
+                </motion.a>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className="px-3 py-1 text-xs text-green-600 border border-green-600 rounded hover:bg-green-50"
                   onClick={() => handleEditClick(commerce)}
                 >
                   Editar
-                </button>
+                </motion.button>
 
-                <button
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className="px-3 py-1 text-xs text-red-600 border border-red-600 rounded hover:bg-red-50"
                   onClick={() => handleDeleteClick(commerce)}
                 >
                   Eliminar
-                </button>
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       )}
@@ -404,8 +418,16 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
 
       {/* Modal de confirmación para eliminar */}
       {showDeleteModal && commerceToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.9, y: 20 }}
+            animate={{ scale: 1, y: 0 }}
+            className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full"
+          >
             <h3 className="text-lg font-bold mb-4">Confirmar eliminación</h3>
             <p className="mb-4">
               ¿Estás seguro de que deseas eliminar el comercio <strong>{commerceToDelete.business_name}</strong>?
@@ -431,23 +453,27 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
             </div>
 
             <div className="flex justify-end space-x-3">
-              <Button
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={cancelDelete}
-                variant="outline"
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded"
                 disabled={deleteLoading}
               >
                 Cancelar
-              </Button>
-              <Button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={confirmDelete}
-                variant="destructive"
+                className="px-4 py-2 bg-red-600 text-white rounded"
                 disabled={!deletePassword || deletePassword.length < 3 || deleteLoading}
               >
                 {deleteLoading ? 'Eliminando...' : 'Eliminar'}
-              </Button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

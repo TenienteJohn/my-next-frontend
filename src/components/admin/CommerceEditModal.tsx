@@ -1,8 +1,9 @@
+// CommerceEditModal.tsx
 'use client';
 import { useState } from 'react';
 import axios from 'axios';
-import { Button } from '@/components/ui/button';
 import Image from 'next/image';
+import { motion } from 'framer-motion';
 
 interface Commerce {
   id: number;
@@ -20,6 +21,7 @@ interface CommerceEditModalProps {
 }
 
 export default function CommerceEditModal({ commerce, onClose, onUpdate }: CommerceEditModalProps) {
+  // MANTENER EL CÓDIGO ORIGINAL
   const [formData, setFormData] = useState({
     business_name: commerce.business_name,
     subdomain: commerce.subdomain,
@@ -106,7 +108,11 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
       }
 
       setSuccess(true);
-      onUpdate(updatedCommerce);
+
+      // Esperar un momento para mostrar el mensaje de éxito antes de cerrar
+      setTimeout(() => {
+        onUpdate(updatedCommerce);
+      }, 1000);
 
     } catch (error: any) {
       console.error("Error al actualizar comercio:", error);
@@ -117,29 +123,52 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+      >
+        <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-t-lg">
+          <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Editar Comercio</h2>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-gray-700"
+              className="text-white hover:bg-white/10 p-1 rounded-full"
             >
-              ✕
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
+        </div>
 
+        <div className="p-6">
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded"
+            >
               {error}
-            </div>
+            </motion.div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded flex items-center"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               Comercio actualizado correctamente
-            </div>
+            </motion.div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -220,12 +249,14 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
                 </div>
 
                 <div>
-                  <label
+                  <motion.label
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     htmlFor="logo-upload"
-                    className="inline-block px-4 py-2 bg-gray-200 text-gray-800 rounded cursor-pointer hover:bg-gray-300"
+                    className="inline-block px-4 py-2 bg-blue-500 text-white rounded cursor-pointer hover:bg-blue-600"
                   >
                     Seleccionar nuevo logo
-                  </label>
+                  </motion.label>
                   <input
                     id="logo-upload"
                     type="file"
@@ -243,24 +274,29 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
             </div>
 
             <div className="flex justify-end space-x-3 pt-4">
-              <Button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 type="button"
-                variant="outline"
                 onClick={onClose}
                 disabled={isLoading}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition"
               >
                 Cancelar
-              </Button>
-              <Button
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 type="submit"
                 disabled={isLoading}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
               >
                 {isLoading ? 'Guardando...' : 'Guardar cambios'}
-              </Button>
+              </motion.button>
             </div>
           </form>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
