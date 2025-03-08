@@ -1,4 +1,3 @@
-// CommerceList.tsx con animaciones pero manteniendo la lógica original
 'use client';
 import { useState, useEffect } from "react";
 import Image from "next/image";
@@ -6,6 +5,7 @@ import axios from "axios";
 import { motion } from "framer-motion";
 import CommerceForm from "./CommerceForm";
 import CommerceEditModal from "./CommerceEditModal";
+import CommerceDetailsModal from "./CommerceDetailsModal";
 
 interface Commerce {
   id: number;
@@ -22,7 +22,6 @@ interface CommerceListProps {
 }
 
 export default function CommerceList({ commerces: initialCommerces, setCommerces: parentSetCommerces }: CommerceListProps) {
-  // MANTENER TODO EL CÓDIGO ORIGINAL PERO AGREGAR MOTION COMPONENTS
   const [localCommerces, setLocalCommerces] = useState<Commerce[]>(initialCommerces || []);
   const [isLoading, setIsLoading] = useState<boolean>(!initialCommerces);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +37,10 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Nuevo estado para el modal de detalles
+  const [detailsCommerce, setDetailsCommerce] = useState<Commerce | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+
   // Estados para forzar refresco de imágenes
   const [imageVersions, setImageVersions] = useState<Record<number, number>>({});
 
@@ -47,14 +50,12 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   // Referencia a los comercios correctos
   const displayCommerces = initialCommerces || localCommerces;
 
-  // MANTENER EL CÓDIGO ORIGINAL DE USEEFFECT
   useEffect(() => {
     if (!initialCommerces) {
       fetchCommerces();
     }
   }, [initialCommerces]);
 
-  // MANTENER EL CÓDIGO ORIGINAL DE FETCHCOMMERCES
   const fetchCommerces = async () => {
     try {
       setIsLoading(true);
@@ -82,7 +83,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  // MANTENER EL CÓDIGO ORIGINAL DE HANDLECOMMERCECREATED
   const handleCommerceCreated = (newCommerce: any) => {
     console.log("Comercio creado:", newCommerce);
 
@@ -102,7 +102,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     fetchCommerces();
   };
 
-  // MANTENER EL CÓDIGO ORIGINAL DE HANDLEFILECHANGE
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, commerceId: number) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
@@ -110,7 +109,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  // MANTENER EL CÓDIGO ORIGINAL DE HANDLELOGOUPLOAD
   const handleLogoUpload = async (commerceId: number, file: File) => {
     try {
       setUploadingForId(commerceId);
@@ -165,7 +163,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  // MANTENER TODAS LAS FUNCIONES ORIGINALES Y AGREGAR MOTION
   const handleEditClick = (commerce: Commerce) => {
     setEditingCommerce(commerce);
     setShowEditModal(true);
@@ -182,6 +179,12 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     setEditingCommerce(null);
 
     fetchCommerces();
+  };
+
+  // Nuevo manejador para ver detalles completos
+  const handleDetailsClick = (commerce: Commerce) => {
+    setDetailsCommerce(commerce);
+    setShowDetailsModal(true);
   };
 
   const handleDeleteClick = (commerce: Commerce) => {
@@ -373,6 +376,18 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
               </div>
 
               <div className="flex justify-end space-x-2 mt-4">
+                {/* Nuevo botón para ver detalles completos */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleDetailsClick(commerce)}
+                  className="px-3 py-1 text-xs text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </motion.button>
+
                 <motion.a
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -413,6 +428,14 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
           commerce={editingCommerce}
           onClose={() => setShowEditModal(false)}
           onUpdate={handleCommerceUpdated}
+        />
+      )}
+
+      {/* Modal de detalles completos */}
+      {showDetailsModal && detailsCommerce && (
+        <CommerceDetailsModal
+          commerce={detailsCommerce}
+          onClose={() => setShowDetailsModal(false)}
         />
       )}
 

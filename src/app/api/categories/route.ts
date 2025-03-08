@@ -1,0 +1,112 @@
+// src/app/api/categories/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(request: NextRequest) {
+  try {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
+    const url = `${apiBaseUrl}/api/categories`;
+
+    // Obtener el token de autorización de la solicitud
+    const token = request.headers.get('authorization');
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No se proporcionó token de autenticación' },
+        { status: 401 }
+      );
+    }
+
+    console.log('Proxy /categories: Enviando solicitud al backend');
+
+    // Realizar la solicitud al backend
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': token,
+      },
+    });
+
+    // Si la respuesta no es exitosa, devolver el error
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Error del servidor' }));
+      return NextResponse.json(errorData, { status: response.status });
+    }
+
+    // Obtener los datos de la respuesta
+    const data = await response.json();
+
+    console.log('Proxy /categories: Respuesta del backend recibida', {
+      status: response.status,
+      ok: response.ok,
+      categoriesCount: Array.isArray(data) ? data.length : 'N/A'
+    });
+
+    // Devolver los datos al cliente
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('Proxy /categories: Error en la solicitud', error);
+
+    return NextResponse.json(
+      { error: `Error en el proxy: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
+    const url = `${apiBaseUrl}/api/categories`;
+
+    // Obtener el token de autorización de la solicitud
+    const token = request.headers.get('authorization');
+
+    if (!token) {
+      return NextResponse.json(
+        { error: 'No se proporcionó token de autenticación' },
+        { status: 401 }
+      );
+    }
+
+    // Obtener el cuerpo de la solicitud
+    const body = await request.json();
+
+    console.log('Proxy /categories (POST): Enviando solicitud al backend', {
+      body
+    });
+
+    // Realizar la solicitud al backend
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+
+    // Si la respuesta no es exitosa, devolver el error
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Error del servidor' }));
+      return NextResponse.json(errorData, { status: response.status });
+    }
+
+    // Obtener los datos de la respuesta
+    const data = await response.json();
+
+    console.log('Proxy /categories (POST): Respuesta del backend recibida', {
+      status: response.status,
+      ok: response.ok
+    });
+
+    // Devolver los datos al cliente
+    return NextResponse.json(data);
+  } catch (error: any) {
+    console.error('Proxy /categories (POST): Error en la solicitud', error);
+
+    return NextResponse.json(
+      { error: `Error en el proxy: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}

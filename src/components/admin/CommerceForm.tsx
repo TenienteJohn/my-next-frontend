@@ -1,6 +1,6 @@
 // src/components/admin/CommerceForm.tsx
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,12 @@ interface CommerceDataForm {
   owner_address: string;     // Se usará para address
   owner_phone: string;       // Se usará para phone
   business_category?: string;
+}
+
+interface FieldValidation {
+  isValid: boolean;
+  error: string | null;
+  isChecking: boolean;
 }
 
 interface CommerceFormProps {
@@ -35,31 +41,224 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
     business_category: '',
   });
 
+  // Estado para validación de campos
+  const [validation, setValidation] = useState({
+    subdomain: { isValid: true, error: null, isChecking: false } as FieldValidation,
+    owner_email: { isValid: true, error: null, isChecking: false } as FieldValidation,
+    owner_password: { isValid: true, error: null, isChecking: false } as FieldValidation,
+  });
+
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [detailedError, setDetailedError] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1); // Para navegación multi-pasos
   const [formSubmitted, setFormSubmitted] = useState(false);
 
+  // Debounce timer para validación de campos
+  const [emailCheckTimeout, setEmailCheckTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [subdomainCheckTimeout, setSubdomainCheckTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Si es el campo de subdominio, formateamos para eliminar caracteres no permitidos
-    if (e.target.name === 'subdomain') {
-      const formattedSubdomain = e.target.value
+    const { name, value } = e.target;
+
+    if (name === 'subdomain') {
+      // Formatear subdominio: solo letras minúsculas, números y guiones
+      const formattedSubdomain = value
         .toLowerCase()
         .replace(/[^a-z0-9-]/g, '') // Solo permitir letras minúsculas, números y guiones
         .replace(/^-+|-+$/g, ''); // Eliminar guiones al principio y al final
 
       setFormData({ ...formData, subdomain: formattedSubdomain });
+
+      // Validar subdominio con debounce
+      if (formattedSubdomain.length >= 3) {
+        setValidation(prev => ({
+          ...prev,
+          subdomain: { ...prev.subdomain, isChecking: true, error: null }
+        }));
+
+        // Limpiar timeout anterior si existe
+        if (subdomainCheckTimeout) clearTimeout(subdomainCheckTimeout);
+
+        // Configurar nuevo timeout
+        const timeout = setTimeout(async () => {
+          await checkSubdomainAvailability(formattedSubdomain);
+        }, 500);
+
+        setSubdomainCheckTimeout(timeout);
+      } else if (formattedSubdomain.length > 0) {
+        setValidation(prev => ({
+          ...prev,
+          subdomain: {
+            isValid: false,
+            error: 'El subdominio debe tener al menos 3 caracteres',
+            isChecking: false
+          }
+        }));
+      }
+    } else if (name === 'owner_email') {
+      setFormData({ ...formData, owner_email: value });
+
+      // Validar email con regex básico
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (value && !emailRegex.test(value)) {
+        setValidation(prev => ({
+          ...prev,
+          owner_email: {
+            isValid: false,
+            error: 'Formato de correo electrónico inválido',
+            isChecking: false
+          }
+        }));
+        return;
+      }
+
+      // Validar disponibilidad de email con debounce
+      if (value && emailRegex.test(value)) {
+        setValidation(prev => ({
+          ...prev,
+          owner_email: { ...prev.owner_email, isChecking: true, error: null }
+        }));
+
+        // Limpiar timeout anterior si existe
+        if (emailCheckTimeout) clearTimeout(emailCheckTimeout);
+
+        // Configurar nuevo timeout
+        const timeout = setTimeout(async () => {
+          await checkEmailAvailability(value);
+        }, 500);
+
+        setEmailCheckTimeout(timeout);
+      } else if (!value) {
+        setValidation(prev => ({
+          ...prev,
+          owner_email: { isValid: true, error: null, isChecking: false }
+        }));
+      }
+    } else if (name === 'owner_password') {
+      setFormData({ ...formData, owner_password: value });
+
+      // Validar longitud mínima de contraseña
+      if (value && value.length < 6) {
+        setValidation(prev => ({
+          ...prev,
+          owner_password: {
+            isValid: false,
+            error: 'La contraseña debe tener al menos 6 caracteres',
+            isChecking: false
+          }
+        }));
+      } else {
+        setValidation(prev => ({
+          ...prev,
+          owner_password: { isValid: true, error: null, isChecking: false }
+        }));
+      }
     } else {
-      setFormData({ ...formData, [e.target.name]: e.target.value });
+      // Para otros campos, no se necesita validación especial
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  // Función para verificar disponibilidad de email
+  const checkEmailAvailability = async (email: string) => {
+    try {
+      const response = await axios.get(`${apiBaseUrl}/api/auth/check-email/${email}`);
+
+      setValidation(prev => ({
+        ...prev,
+        owner_email: {
+          isValid: response.data.isAvailable,
+          error: response.data.isAvailable ? null : 'Este correo ya está registrado',
+          isChecking: false
+        }
+      }));
+    } catch (error) {
+      console.error('Error al verificar disponibilidad de email:', error);
+      setValidation(prev => ({
+        ...prev,
+        owner_email: {
+          isValid: true, // Asumir válido en caso de error para no bloquear al usuario
+          error: null,
+          isChecking: false
+        }
+      }));
+    }
+  };
+
+  // Función para verificar disponibilidad de subdominio
+  const checkSubdomainAvailability = async (subdomain: string) => {
+    try {
+      // Verificar que el subdominio tenga al menos 3 caracteres
+      if (subdomain.length < 3) {
+        setValidation(prev => ({
+          ...prev,
+          subdomain: {
+            isValid: false,
+            error: 'El subdominio debe tener al menos 3 caracteres',
+            isChecking: false
+          }
+        }));
+        return;
+      }
+
+      // Verificar subdominio consultando la lista de comercios
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("No se encontró token de autenticación");
+      }
+
+      const commercesResponse = await axios.get(`${apiBaseUrl}/api/commerces`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const isSubdomainAvailable = !commercesResponse.data.some(
+        (commerce: any) => commerce.subdomain.toLowerCase() === subdomain.toLowerCase()
+      );
+
+      setValidation(prev => ({
+        ...prev,
+        subdomain: {
+          isValid: isSubdomainAvailable,
+          error: isSubdomainAvailable ? null : 'Este subdominio ya está en uso',
+          isChecking: false
+        }
+      }));
+    } catch (error) {
+      console.error('Error al verificar disponibilidad de subdominio:', error);
+      setValidation(prev => ({
+        ...prev,
+        subdomain: {
+          isValid: true, // Asumir válido en caso de error para no bloquear al usuario
+          error: null,
+          isChecking: false
+        }
+      }));
     }
   };
 
   const isStepValid = () => {
     if (step === 1) {
-      return formData.commerceName && formData.subdomain && formData.business_category;
+      return (
+        formData.commerceName &&
+        formData.subdomain &&
+        validation.subdomain.isValid &&
+        formData.business_category &&
+        !validation.subdomain.isChecking
+      );
     } else {
-      return formData.owner_name && formData.owner_lastname && formData.owner_email && formData.owner_password;
+      return (
+        formData.owner_name &&
+        formData.owner_lastname &&
+        formData.owner_email &&
+        validation.owner_email.isValid &&
+        formData.owner_password &&
+        validation.owner_password.isValid &&
+        !validation.owner_email.isChecking
+      );
     }
   };
 
@@ -77,6 +276,7 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setDetailedError(null);
     setMessage('');
 
     try {
@@ -86,7 +286,7 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
         throw new Error("No se encontró token de autenticación");
       }
 
-      // Mapeo de campos del formulario a los nombres que espera el backend:
+      // Mapeo de campos del formulario a los nombres que espera el backend
       const payload = {
         business_name: formData.commerceName,
         subdomain: formData.subdomain,
@@ -99,40 +299,107 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
         business_category: formData.business_category,
       };
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
+      // Loguear el payload para depuración
+      console.log("Enviando payload:", payload);
 
-      const response = await axios.post(`${apiBaseUrl}/api/commerces`, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      // Animación de éxito
-      setFormSubmitted(true);
-
-      // Reiniciar el formulario después de un tiempo
-      setTimeout(() => {
-        setFormData({
-          commerceName: '',
-          subdomain: '',
-          owner_email: '',
-          owner_password: '',
-          owner_name: '',
-          owner_lastname: '',
-          owner_address: '',
-          owner_phone: '',
-          business_category: '',
+      try {
+        const response = await axios.post(`${apiBaseUrl}/api/commerces`, payload, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
-        setStep(1);
-        setFormSubmitted(false);
-      }, 2000);
 
-      setMessage('¡Comercio creado exitosamente!');
-      onCommerceCreated(response.data);
+        // Loguear la respuesta completa
+        console.log("Respuesta exitosa:", response);
+
+        // Animación de éxito
+        setFormSubmitted(true);
+
+        // Reiniciar el formulario después de un tiempo
+        setTimeout(() => {
+          setFormData({
+            commerceName: '',
+            subdomain: '',
+            owner_email: '',
+            owner_password: '',
+            owner_name: '',
+            owner_lastname: '',
+            owner_address: '',
+            owner_phone: '',
+            business_category: '',
+          });
+          setStep(1);
+          setFormSubmitted(false);
+        }, 2000);
+
+        setMessage('¡Comercio creado exitosamente!');
+        onCommerceCreated(response.data);
+      } catch (axiosError: any) {
+        // Capturar y mostrar detalles específicos del error de Axios
+        console.error("Error de Axios:", axiosError);
+
+        if (axiosError.response) {
+          // El servidor respondió con un código de estado diferente de 2xx
+          console.error("Datos de la respuesta:", axiosError.response.data);
+          console.error("Estado HTTP:", axiosError.response.status);
+
+          // Manejar errores específicos de campo
+          if (axiosError.response.data?.field) {
+            const field = axiosError.response.data.field;
+            const errorMsg = axiosError.response.data.error;
+
+            if (field === 'subdomain') {
+              setValidation(prev => ({
+                ...prev,
+                subdomain: {
+                  isValid: false,
+                  error: errorMsg,
+                  isChecking: false
+                }
+              }));
+              setStep(1); // Volver al paso 1 si hay error en subdominio
+            } else if (field === 'owner_email') {
+              setValidation(prev => ({
+                ...prev,
+                owner_email: {
+                  isValid: false,
+                  error: errorMsg,
+                  isChecking: false
+                }
+              }));
+              setStep(2); // Volver al paso 2 si hay error en email
+            }
+          } else {
+            // Error general
+            setError(`Error ${axiosError.response.status}: ${axiosError.response.data?.error || 'Error del servidor'}`);
+          }
+
+          setDetailedError({
+            status: axiosError.response.status,
+            data: axiosError.response.data,
+          });
+        } else if (axiosError.request) {
+          // La solicitud se realizó pero no se recibió respuesta
+          console.error("No se recibió respuesta:", axiosError.request);
+          setError("No se recibió respuesta del servidor. Verifica tu conexión a internet.");
+          setDetailedError({ request: "No response received" });
+        } else {
+          // Algo salió mal al configurar la solicitud
+          console.error("Error de configuración:", axiosError.message);
+          setError(`Error de configuración: ${axiosError.message}`);
+          setDetailedError({ message: axiosError.message });
+        }
+
+        throw axiosError; // Re-lanzar para el catch externo
+      }
     } catch (error: any) {
-      console.error("Error al crear el comercio:", error);
-      setError(error.response?.data?.error || 'Error al crear el comercio. Intenta de nuevo.');
+      // Este catch captura cualquier otro error no relacionado con Axios
+      console.error("Error general al crear el comercio:", error);
+
+      if (!detailedError) {
+        setError(error.message || 'Error al crear el comercio. Intenta de nuevo.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -142,6 +409,37 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
     hidden: { opacity: 0, y: 10 },
     visible: { opacity: 1, y: 0 },
     exit: { opacity: 0, y: -10 }
+  };
+
+  // Componente para mostrar estado de validación
+  const ValidationStatus = ({ field }: { field: 'subdomain' | 'owner_email' | 'owner_password' }) => {
+    const { isValid, error, isChecking } = validation[field];
+
+    if (isChecking) {
+      return (
+        <div className="text-blue-500 text-xs mt-1 flex items-center">
+          <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Verificando...
+        </div>
+      );
+    }
+
+    if (!isValid && error) {
+      return <div className="text-red-500 text-xs mt-1">{error}</div>;
+    }
+
+    if (field === 'subdomain' && formData.subdomain.length >= 3 && isValid) {
+      return <div className="text-green-500 text-xs mt-1">Subdominio disponible</div>;
+    }
+
+    if (field === 'owner_email' && formData.owner_email && isValid) {
+      return <div className="text-green-500 text-xs mt-1">Email disponible</div>;
+    }
+
+    return null;
   };
 
   return (
@@ -165,7 +463,16 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
             animate={{ opacity: 1, y: 0 }}
             className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded mx-6 mt-6"
           >
-            {error}
+            <p className="font-medium">{error}</p>
+
+            {detailedError && (
+              <details className="mt-2 text-sm">
+                <summary className="cursor-pointer text-red-600">Ver detalles técnicos del error</summary>
+                <pre className="mt-2 p-2 bg-red-50 text-red-800 rounded overflow-auto text-xs">
+                  {JSON.stringify(detailedError, null, 2)}
+                </pre>
+              </details>
+            )}
           </motion.div>
         )}
 
@@ -229,11 +536,16 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                       id="subdomain"
                       name="subdomain"
                       placeholder="Ej: mirestaurante"
-                      className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={`w-full p-2 border rounded focus:ring-2 focus:border-transparent ${
+                        validation.subdomain.isValid
+                          ? "focus:ring-blue-500"
+                          : "border-red-300 focus:ring-red-500"
+                      }`}
                       value={formData.subdomain}
                       onChange={handleChange}
                       required
                     />
+                    <ValidationStatus field="subdomain" />
                     <p className="text-xs text-gray-500 mt-1">
                       El subdominio será: {formData.subdomain || 'micomercio'}.tudominio.com
                     </p>
@@ -262,7 +574,11 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
                     type="button"
-                    className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className={`px-6 py-2 rounded transition ${
+                      isStepValid()
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                     onClick={nextStep}
                     disabled={!isStepValid()}
                   >
@@ -329,11 +645,16 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                     id="owner_email"
                     name="owner_email"
                     placeholder="correo@ejemplo.com"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full p-2 border rounded focus:ring-2 focus:border-transparent ${
+                      validation.owner_email.isValid
+                        ? "focus:ring-blue-500"
+                        : "border-red-300 focus:ring-red-500"
+                    }`}
                     value={formData.owner_email}
                     onChange={handleChange}
                     required
                   />
+                  <ValidationStatus field="owner_email" />
                 </div>
 
                 <div>
@@ -347,12 +668,17 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                     id="owner_password"
                     name="owner_password"
                     placeholder="Contraseña segura"
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={`w-full p-2 border rounded focus:ring-2 focus:border-transparent ${
+                      validation.owner_password.isValid
+                        ? "focus:ring-blue-500"
+                        : "border-red-300 focus:ring-red-500"
+                    }`}
                     value={formData.owner_password}
                     onChange={handleChange}
                     required
                     minLength={6}
                   />
+                  <ValidationStatus field="owner_password" />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -404,7 +730,11 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+                    className={`px-6 py-2 rounded transition ${
+                      isStepValid() && !isLoading
+                        ? "bg-blue-500 text-white hover:bg-blue-600"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    }`}
                     disabled={isLoading || !isStepValid()}
                   >
                     {isLoading ? (
@@ -417,12 +747,13 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                       </div>
                     ) : 'Crear Comercio'}
                   </motion.button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </form>
-      </CardContent>
-    </Card>
-  );
-}
+                 </div>
+                </motion.div>
+               )}
+           </AnimatePresence>
+          </form>
+         </CardContent>
+        </Card>
+        );
+    }
+

@@ -10,12 +10,19 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<string | null>(null);
   const router = useRouter();
 
   const login = async () => {
     try {
       setIsLoading(true);
-      const res = await fetch("https://cartaenlinea-67dbc62791d3.herokuapp.com/api/auth/login", {
+      setError(null);
+      setDebugInfo(null);
+
+      console.log('Iniciando proceso de login con proxy local');
+
+      // Usar el proxy local en lugar del endpoint directo
+      const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -23,20 +30,90 @@ export default function Login() {
 
       if (res.ok) {
         const data = await res.json();
+
+        // Para depuración - mostrar la respuesta completa del servidor
+        console.log("Respuesta del servidor:", data);
+        setDebugInfo(JSON.stringify(data, null, 2));
+
+        // Guardar token y rol en localStorage
         localStorage.setItem("token", data.token);
         localStorage.setItem("role", data.role);
+
+        // También guardar el commerceId si está disponible
+        if (data.commerceId) {
+          localStorage.setItem("commerceId", data.commerceId.toString());
+        }
 
         if (data.role === "SUPERUSER") {
           router.push("/admin/commerces");
         } else {
-          router.push("/config");
+          // Si es OWNER, manejar la redirección con subdominios
+          const hostname = window.location.hostname;
+
+          // Verificar si ya estamos en un subdominio
+          const isSubdomain = (hostname.includes('localhost') && hostname !== 'localhost') ||
+                             (hostname.includes('.') && !hostname.startsWith('www'));
+
+          // Para depuración
+          console.log(`Hostname actual: ${hostname}`);
+          console.log(`¿Es subdominio?: ${isSubdomain}`);
+
+          if (isSubdomain) {
+            // Si ya estamos en un subdominio, simplemente navegamos a /config
+            console.log("Ya estamos en un subdominio, navegando a /config");
+            router.push("/config");
+          } else {
+            // Si no estamos en un subdominio, verificamos si la respuesta incluye información del subdominio
+            if (data.commerce && data.commerce.subdomain) {
+              // La API devuelve el subdominio en data.commerce.subdomain
+              const subdomain = data.commerce.subdomain;
+              console.log(`Subdominio encontrado en la respuesta: ${subdomain}`);
+
+              // Construir la URL con el subdominio
+              let redirectUrl;
+              if (hostname.includes('localhost')) {
+                redirectUrl = `http://${subdomain}.localhost:3000/config`;
+              } else {
+                redirectUrl = `https://${subdomain}.cartaenlinea.com/config`;
+              }
+
+              console.log(`Redirigiendo a: ${redirectUrl}`);
+              window.location.href = redirectUrl;
+            } else if (data.subdomain) {
+              // La API devuelve el subdominio directamente en data.subdomain
+              const subdomain = data.subdomain;
+              console.log(`Subdominio encontrado en la respuesta: ${subdomain}`);
+
+              // Construir la URL con el subdominio
+              let redirectUrl;
+              if (hostname.includes('localhost')) {
+                redirectUrl = `http://${subdomain}.localhost:3000/config`;
+              } else {
+                redirectUrl = `https://${subdomain}.cartaenlinea.com/config`;
+              }
+
+              console.log(`Redirigiendo a: ${redirectUrl}`);
+              window.location.href = redirectUrl;
+            } else {
+              // No hay información de subdominio, navegamos a /config en el dominio actual
+              console.log("No se encontró información de subdominio, navegando a /config");
+              router.push("/config");
+            }
+          }
         }
       } else {
-        setError("Credenciales incorrectas");
+        // Obtener detalles del error
+        try {
+          const errorData = await res.json();
+          setError(errorData.message || errorData.error || "Credenciales incorrectas");
+          setDebugInfo(JSON.stringify(errorData, null, 2));
+        } catch (e) {
+          setError(`Error ${res.status}: ${res.statusText}`);
+        }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Error al iniciar sesión:", error);
-      setError("Ocurrió un error. Inténtalo nuevamente.");
+      setError(`Error de conexión: ${error.message || "No se pudo conectar al servidor"}`);
     } finally {
       setIsLoading(false);
     }
@@ -72,13 +149,13 @@ export default function Login() {
           </motion.h1>
 
           {error && (
-            <motion.p
+            <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="text-red-500 mb-4"
+              className="bg-red-100 border border-red-400 text-red-700 p-3 rounded-md mb-4"
             >
               {error}
-            </motion.p>
+            </motion.div>
           )}
 
           <motion.div
@@ -115,6 +192,11 @@ export default function Login() {
                 placeholder="Ingresa tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    login();
+                  }
+                }}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -139,6 +221,14 @@ export default function Login() {
               )}
             </motion.button>
           </motion.div>
+
+          {/* Sección de depuración - solo visible en desarrollo */}
+          {process.env.NODE_ENV === 'development' && debugInfo && (
+            <div className="mt-6 p-3 bg-gray-100 rounded-md text-xs overflow-x-auto">
+              <p className="font-bold mb-1">Información de respuesta (depuración):</p>
+              <pre>{debugInfo}</pre>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
