@@ -1,13 +1,32 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Ignora errores de TypeScript durante el build
   typescript: {
-    // Ignora errores de TypeScript durante el build
     ignoreBuildErrors: true,
   },
+  // Ignora errores de ESLint durante el build
   eslint: {
-    // Ignora errores de ESLint durante el build
     ignoreDuringBuilds: true,
+  },
+  // Configuración de imágenes
+  images: {
+    domains: ["res.cloudinary.com"], // ✅ Permite imágenes desde Cloudinary
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+    ],
+  },
+  // Añadir reescrituras para redirigir las solicitudes API al backend
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'https://cartaenlinea-67dbc62791d3.herokuapp.com/api/:path*',
+      },
+    ];
   },
 }
 
-module.exports = nextConfig
+module.exports = nextConfig;
