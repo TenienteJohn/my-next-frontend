@@ -3,6 +3,21 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  // Si es una solicitud OPTIONS a la API, responder con los headers CORS adecuados
+  const { pathname } = request.nextUrl;
+  if (request.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+    console.log('[Middleware] Interceptando solicitud OPTIONS para API:', pathname);
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With',
+        'Access-Control-Max-Age': '86400', // 24 horas
+      },
+    });
+  }
+
   // Obtener el hostname (por ejemplo: burguer.cartaenlinea.com)
   const hostname = request.headers.get('host') || '';
   console.log(`[Middleware] Hostname: ${hostname}`);
@@ -13,7 +28,6 @@ export function middleware(request: NextRequest) {
     console.log('[Middleware] Dominio Vercel detectado, manejando como dominio principal');
 
     // Si es una ruta de admin, permitir el acceso
-    const { pathname } = request.nextUrl;
     if (pathname.startsWith('/admin')) {
       console.log('[Middleware] Ruta de admin en Vercel, continuar normalmente');
       return NextResponse.next();
@@ -36,7 +50,6 @@ export function middleware(request: NextRequest) {
 
   // La URL actual
   const url = request.nextUrl.clone();
-  const { pathname } = url;
   console.log(`[Middleware] Pathname: ${pathname}`);
 
   // Lista de rutas públicas que siempre deben estar accesibles
@@ -102,9 +115,9 @@ function getSubdomain(hostname: string): string | null {
   return null;
 }
 
-// Configurar en qué rutas se ejecuta el middleware
+// Actualizar la configuración para que el middleware también se ejecute en rutas de API
 export const config = {
   matcher: [
-    '/((?!api|_next|public|_vercel|.*\\..*).*)',
+    '/((?!_next|public|_vercel|.*\\..*).*)',
   ],
 };
