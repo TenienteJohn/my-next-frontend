@@ -1,7 +1,7 @@
 // CommerceEditModal.tsx
 'use client';
 import { useState } from 'react';
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 
@@ -18,6 +18,11 @@ interface CommerceEditModalProps {
   commerce: Commerce;
   onClose: () => void;
   onUpdate: (updatedCommerce: Commerce) => void;
+}
+
+// Interface for API error responses
+interface ApiErrorResponse {
+  error: string;
 }
 
 export default function CommerceEditModal({ commerce, onClose, onUpdate }: CommerceEditModalProps) {
@@ -78,14 +83,14 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
 
       // 1. Primero actualizamos los datos del comercio
-      const response = await axios.put(`${apiBaseUrl}/api/commerces/${commerce.id}`, formData, {
+      await axios.put(`${apiBaseUrl}/api/commerces/${commerce.id}`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      let updatedCommerce = {
+      const updatedCommerce: Commerce = {
         ...commerce,
         ...formData
       };
@@ -114,9 +119,15 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
         onUpdate(updatedCommerce);
       }, 1000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al actualizar comercio:", error);
-      setError(error.response?.data?.error || "Error al actualizar el comercio");
+
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        setError(axiosError.response?.data?.error || "Error al actualizar el comercio");
+      } else {
+        setError("Error al actualizar el comercio");
+      }
     } finally {
       setIsLoading(false);
     }

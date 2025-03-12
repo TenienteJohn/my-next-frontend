@@ -111,8 +111,8 @@ export default function Login() {
           <Image
             src="/images/login-illustration.png"
             alt="Ilustración de inicio de sesión"
-            layout="fill"
-            objectFit="cover"
+            fill
+            style={{ objectFit: "cover" }}
           />
         </div>
 

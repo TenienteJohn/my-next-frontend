@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { motion } from "framer-motion";
 import CommerceForm from "./CommerceForm";
 import CommerceEditModal from "./CommerceEditModal";
@@ -14,6 +14,11 @@ interface Commerce {
   logo_url?: string;
   business_category?: string;
   created_at?: string;
+}
+
+interface ApiErrorResponse {
+  error?: string;
+  message?: string;
 }
 
 interface CommerceListProps {
@@ -50,12 +55,6 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   // Referencia a los comercios correctos
   const displayCommerces = initialCommerces || localCommerces;
 
-  useEffect(() => {
-    if (!initialCommerces) {
-      fetchCommerces();
-    }
-  }, [initialCommerces]);
-
   const fetchCommerces = async () => {
     try {
       setIsLoading(true);
@@ -83,16 +82,22 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     }
   };
 
-  const handleCommerceCreated = (newCommerce: any) => {
+  useEffect(() => {
+    if (!initialCommerces) {
+      fetchCommerces();
+    }
+  }, [initialCommerces]);
+
+  const handleCommerceCreated = (newCommerce: Commerce) => {
     console.log("Comercio creado:", newCommerce);
 
     // Asegurarnos de que tenemos la estructura correcta
     const commerceToAdd: Commerce = {
       id: newCommerce.id || Date.now(), // Usar un ID temporal si no hay uno
-      business_name: newCommerce.business_name || newCommerce.message?.business_name || "Nuevo Comercio",
-      subdomain: newCommerce.subdomain || newCommerce.message?.subdomain || "subdominio",
-      logo_url: newCommerce.logo_url || newCommerce.message?.logo_url,
-      business_category: newCommerce.business_category || newCommerce.message?.business_category,
+      business_name: newCommerce.business_name || "Nuevo Comercio",
+      subdomain: newCommerce.subdomain || "subdominio",
+      logo_url: newCommerce.logo_url,
+      business_category: newCommerce.business_category,
       created_at: new Date().toISOString()
     };
 
@@ -152,12 +157,15 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       // Recargar la lista completa para asegurar consistencia
       fetchCommerces();
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error al subir el logo:", error);
-      if (error.response) {
-        console.error("Respuesta del servidor:", error.response.status, error.response.data);
+      if (axios.isAxiosError(error)) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        console.error("Respuesta del servidor:", axiosError.response?.status, axiosError.response?.data);
+        setError("Error al subir el logo: " + (axiosError.response?.data?.error || axiosError.message));
+      } else {
+        setError("Error al subir el logo: " + (error instanceof Error ? error.message : "Error desconocido"));
       }
-      setError("Error al subir el logo: " + (error.response?.data?.error || error.message));
     } finally {
       setUploadingForId(null);
     }
@@ -210,14 +218,14 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
 
       // Primero verificamos la contraseña del superuser
-      const authResponse = await axios.post(`${apiBaseUrl}/api/auth/verify-password`, {
+      await axios.post(`${apiBaseUrl}/api/auth/verify-password`, {
         password: deletePassword
       }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       }).catch(error => {
-        if (error.response && error.response.status === 401) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
           throw new Error("Contraseña incorrecta");
         }
         throw error;
@@ -240,9 +248,9 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       setCommerceToDelete(null);
       setDeletePassword('');
 
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error al eliminar comercio:", error);
-      setDeleteError(error.message || "Error al eliminar el comercio");
+      setDeleteError(error instanceof Error ? error.message : "Error al eliminar el comercio");
     } finally {
       setDeleteLoading(false);
     }

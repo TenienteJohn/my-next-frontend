@@ -13,6 +13,22 @@ interface Commerce {
   created_at?: string;
 }
 
+interface Owner {
+  id: number;
+  email: string;
+  password: string;
+  first_name?: string;
+  last_name?: string;
+  dni?: string;
+  address?: string;
+  phone?: string;
+}
+
+interface CommerceDetails {
+  commerce?: Commerce;
+  owner?: Owner;
+}
+
 interface CommerceDetailsModalProps {
   commerce: Commerce;
   onClose: () => void;
@@ -22,7 +38,7 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
   const [superuserPassword, setSuperuserPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [details, setDetails] = useState<any>(null);
+  const [details, setDetails] = useState<CommerceDetails | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const handleAuthenticate = async () => {
@@ -57,9 +73,15 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
       setDetails(response.data);
       setIsAuthenticated(true);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al obtener detalles:", error);
-      setError(error.response?.data?.error || "Error al obtener los detalles");
+
+      if (error && typeof error === 'object' && 'response' in error) {
+        const axiosError = error as { response?: { data?: { error?: string } } };
+        setError(axiosError.response?.data?.error || "Error al obtener los detalles");
+      } else {
+        setError("Error al obtener los detalles");
+      }
     } finally {
       setIsLoading(false);
     }

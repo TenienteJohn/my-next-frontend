@@ -1,9 +1,8 @@
 // src/components/admin/CommerceForm.tsx
 'use client';
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useState } from 'react';
+import axios, { AxiosError } from 'axios';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CommerceDataForm {
@@ -18,14 +17,37 @@ interface CommerceDataForm {
   business_category?: string;
 }
 
+interface Commerce {
+  id: number;
+  business_name: string;
+  subdomain: string;
+  logo_url?: string;
+  business_category?: string;
+  created_at?: string;
+  // Otros campos que pueda tener tu objeto Commerce
+}
+
 interface FieldValidation {
   isValid: boolean;
   error: string | null;
   isChecking: boolean;
 }
 
+interface ValidationState {
+  subdomain: FieldValidation;
+  owner_email: FieldValidation;
+  owner_password: FieldValidation;
+}
+
+interface DetailedError {
+  status?: number;
+  data?: unknown;
+  request?: string;
+  message?: string;
+}
+
 interface CommerceFormProps {
-  onCommerceCreated: (newCommerce: any) => void;
+  onCommerceCreated: (newCommerce: Commerce) => void;
 }
 
 export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
@@ -42,15 +64,15 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
   });
 
   // Estado para validación de campos
-  const [validation, setValidation] = useState({
-    subdomain: { isValid: true, error: null, isChecking: false } as FieldValidation,
-    owner_email: { isValid: true, error: null, isChecking: false } as FieldValidation,
-    owner_password: { isValid: true, error: null, isChecking: false } as FieldValidation,
+  const [validation, setValidation] = useState<ValidationState>({
+    subdomain: { isValid: true, error: null, isChecking: false },
+    owner_email: { isValid: true, error: null, isChecking: false },
+    owner_password: { isValid: true, error: null, isChecking: false },
   });
 
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [detailedError, setDetailedError] = useState<any>(null);
+  const [detailedError, setDetailedError] = useState<DetailedError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1); // Para navegación multi-pasos
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -216,7 +238,7 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
       });
 
       const isSubdomainAvailable = !commercesResponse.data.some(
-        (commerce: any) => commerce.subdomain.toLowerCase() === subdomain.toLowerCase()
+        (commerce: Commerce) => commerce.subdomain.toLowerCase() === subdomain.toLowerCase()
       );
 
       setValidation(prev => ({
@@ -335,70 +357,76 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
 
         setMessage('¡Comercio creado exitosamente!');
         onCommerceCreated(response.data);
-      } catch (axiosError: any) {
+      } catch (axiosError) {
         // Capturar y mostrar detalles específicos del error de Axios
         console.error("Error de Axios:", axiosError);
 
-        if (axiosError.response) {
-          // El servidor respondió con un código de estado diferente de 2xx
-          console.error("Datos de la respuesta:", axiosError.response.data);
-          console.error("Estado HTTP:", axiosError.response.status);
+        if (axios.isAxiosError(axiosError)) {
+          const error = axiosError as AxiosError<{field?: string; error?: string}>;
 
-          // Manejar errores específicos de campo
-          if (axiosError.response.data?.field) {
-            const field = axiosError.response.data.field;
-            const errorMsg = axiosError.response.data.error;
+          if (error.response) {
+            // El servidor respondió con un código de estado diferente de 2xx
+            console.error("Datos de la respuesta:", error.response.data);
+            console.error("Estado HTTP:", error.response.status);
 
-            if (field === 'subdomain') {
-              setValidation(prev => ({
-                ...prev,
-                subdomain: {
-                  isValid: false,
-                  error: errorMsg,
-                  isChecking: false
-                }
-              }));
-              setStep(1); // Volver al paso 1 si hay error en subdominio
-            } else if (field === 'owner_email') {
-              setValidation(prev => ({
-                ...prev,
-                owner_email: {
-                  isValid: false,
-                  error: errorMsg,
-                  isChecking: false
-                }
-              }));
-              setStep(2); // Volver al paso 2 si hay error en email
+            // Manejar errores específicos de campo
+            const responseData = error.response.data as {field?: string; error?: string};
+
+            if (responseData?.field) {
+              const field = responseData.field;
+              const errorMsg = responseData.error;
+
+              if (field === 'subdomain') {
+                setValidation(prev => ({
+                  ...prev,
+                  subdomain: {
+                    isValid: false,
+                    error: errorMsg || 'Error en el subdominio',
+                    isChecking: false
+                  }
+                }));
+                setStep(1); // Volver al paso 1 si hay error en subdominio
+              } else if (field === 'owner_email') {
+                setValidation(prev => ({
+                  ...prev,
+                  owner_email: {
+                    isValid: false,
+                    error: errorMsg || 'Error en el email',
+                    isChecking: false
+                  }
+                }));
+                setStep(2); // Volver al paso 2 si hay error en email
+              }
+            } else {
+              // Error general
+              setError(`Error ${error.response.status}: ${(error.response.data as {error?: string})?.error || 'Error del servidor'}`);
             }
-          } else {
-            // Error general
-            setError(`Error ${axiosError.response.status}: ${axiosError.response.data?.error || 'Error del servidor'}`);
-          }
 
-          setDetailedError({
-            status: axiosError.response.status,
-            data: axiosError.response.data,
-          });
-        } else if (axiosError.request) {
-          // La solicitud se realizó pero no se recibió respuesta
-          console.error("No se recibió respuesta:", axiosError.request);
-          setError("No se recibió respuesta del servidor. Verifica tu conexión a internet.");
-          setDetailedError({ request: "No response received" });
-        } else {
-          // Algo salió mal al configurar la solicitud
-          console.error("Error de configuración:", axiosError.message);
-          setError(`Error de configuración: ${axiosError.message}`);
-          setDetailedError({ message: axiosError.message });
+            setDetailedError({
+              status: error.response.status,
+              data: error.response.data,
+            });
+          } else if (error.request) {
+            // La solicitud se realizó pero no se recibió respuesta
+            console.error("No se recibió respuesta:", error.request);
+            setError("No se recibió respuesta del servidor. Verifica tu conexión a internet.");
+            setDetailedError({ request: "No response received" });
+          } else {
+            // Algo salió mal al configurar la solicitud
+            console.error("Error de configuración:", error.message);
+            setError(`Error de configuración: ${error.message}`);
+            setDetailedError({ message: error.message });
+          }
         }
 
         throw axiosError; // Re-lanzar para el catch externo
       }
-    } catch (error: any) {
+    } catch (error) {
       // Este catch captura cualquier otro error no relacionado con Axios
       console.error("Error general al crear el comercio:", error);
 
       if (!detailedError) {
-        setError(error.message || 'Error al crear el comercio. Intenta de nuevo.');
+        setError(error instanceof Error ? error.message : 'Error al crear el comercio. Intenta de nuevo.');
       }
     } finally {
       setIsLoading(false);
