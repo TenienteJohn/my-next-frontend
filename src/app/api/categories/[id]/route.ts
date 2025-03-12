@@ -54,11 +54,15 @@ export async function PUT(
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /categories/${params.id} (PUT): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -111,11 +115,15 @@ export async function DELETE(
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /categories/${params.id} (DELETE): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -168,11 +176,15 @@ export async function GET(
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /categories/${params.id} (GET): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

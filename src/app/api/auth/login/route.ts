@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     let data;
     try {
       data = await response.json();
-    } catch (e) {
-      console.error('Error al parsear la respuesta JSON:', e);
+    } catch (_parseError) {
+      console.error('Error al parsear la respuesta JSON:', _parseError);
       return NextResponse.json(
         { error: 'Error al procesar la respuesta del servidor' },
         { status: 500 }
@@ -51,11 +51,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, {
       status: response.status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy auth/login: Error en la solicitud', error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

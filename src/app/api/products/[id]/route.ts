@@ -41,8 +41,8 @@ export async function PUT(
       if (!body.category_id) {
         return NextResponse.json({ error: 'La categoría del producto es obligatoria' }, { status: 400 });
       }
-    } catch (error) {
-      console.error("Error al procesar el cuerpo de la solicitud:", error);
+    } catch (_bodyError: unknown) {
+      console.error("Error al procesar el cuerpo de la solicitud:", _bodyError);
       return NextResponse.json(
         { error: 'Error al procesar el cuerpo de la solicitud' },
         { status: 400 }
@@ -69,7 +69,7 @@ export async function PUT(
       try {
         const errorData = await response.json();
         return NextResponse.json(errorData, { status: response.status });
-      } catch (e) {
+      } catch (_parseError: unknown) {
         return NextResponse.json(
           { error: `Error del servidor: ${response.status} ${response.statusText}` },
           { status: response.status }
@@ -91,8 +91,8 @@ export async function PUT(
             ? data.product.price
             : Number(data.product.price) || 0;
         }
-      } catch (e) {
-        console.error("Error al parsear respuesta JSON:", e);
+      } catch (_jsonError: unknown) {
+        console.error("Error al parsear respuesta JSON:", _jsonError);
         data = { message: 'Producto actualizado exitosamente' };
       }
 
@@ -103,18 +103,22 @@ export async function PUT(
 
       // Devolver los datos al cliente
       return NextResponse.json(data);
-    } catch (error) {
-      console.error("Error al procesar la respuesta:", error);
+    } catch (responseError: unknown) {
+      console.error("Error al procesar la respuesta:", responseError);
       return NextResponse.json(
         { error: 'Error al procesar la respuesta del servidor' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /products/${params.id} (PUT): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -156,7 +160,7 @@ export async function DELETE(
       try {
         const errorData = await response.json();
         return NextResponse.json(errorData, { status: response.status });
-      } catch (e) {
+      } catch (_parseError: unknown) {
         return NextResponse.json(
           { error: `Error del servidor: ${response.status} ${response.statusText}` },
           { status: response.status }
@@ -175,15 +179,19 @@ export async function DELETE(
 
       // Devolver los datos al cliente
       return NextResponse.json(data);
-    } catch (e) {
+    } catch (_jsonError: unknown) {
       // Si no se puede parsear como JSON, devolver un mensaje de éxito genérico
       return NextResponse.json({ message: 'Producto eliminado exitosamente' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /products/${params.id} (DELETE): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -225,7 +233,7 @@ export async function GET(
       try {
         const errorData = await response.json();
         return NextResponse.json(errorData, { status: response.status });
-      } catch (e) {
+      } catch (_parseError: unknown) {
         return NextResponse.json(
           { error: `Error del servidor: ${response.status} ${response.statusText}` },
           { status: response.status }
@@ -251,18 +259,22 @@ export async function GET(
 
       // Devolver los datos al cliente
       return NextResponse.json(data);
-    } catch (e) {
-      console.error("Error al parsear la respuesta:", e);
+    } catch (_parseError: unknown) {
+      console.error("Error al parsear la respuesta:", _parseError);
       return NextResponse.json(
         { error: 'Error al procesar la respuesta del servidor' },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error(`Proxy /products/${params.id} (GET): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

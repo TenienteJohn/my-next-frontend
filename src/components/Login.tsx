@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
+interface FetchError extends Error {
+  message: string;
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,9 +38,14 @@ export default function Login() {
             'Access-Control-Request-Headers': 'Content-Type'
           }
         });
-      } catch (pingError: any) {
+      } catch (pingError: unknown) {
         console.error("Error al verificar disponibilidad del servidor:", pingError);
-        setDetailedError(`Error de conexión: ${pingError.message || "No se pudo conectar al servidor"}`);
+
+        const errorMessage = pingError instanceof Error
+          ? pingError.message
+          : "No se pudo conectar al servidor";
+
+        setDetailedError(`Error de conexión: ${errorMessage}`);
         throw new Error("El servidor no está accesible en este momento. Por favor, intenta más tarde.");
       }
 
@@ -75,14 +84,15 @@ export default function Login() {
           const errorData = await res.json();
           setError(errorData.message || errorData.error || "Credenciales incorrectas");
           setDetailedError(`Código: ${res.status}, Mensaje: ${JSON.stringify(errorData)}`);
-        } catch (e) {
+        } catch (_responseError) {
           setError(`Error en la autenticación (${res.status})`);
           setDetailedError(`El servidor respondió con: ${res.statusText}`);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Error al iniciar sesión:", error);
-      setError(error.message || "Ocurrió un error. Inténtalo nuevamente.");
+      const errorMessage = error instanceof Error ? error.message : "Ocurrió un error. Inténtalo nuevamente.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

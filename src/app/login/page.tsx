@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
 
+interface FetchError extends Error {
+  message: string;
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,13 +111,18 @@ export default function Login() {
           const errorData = await res.json();
           setError(errorData.message || errorData.error || "Credenciales incorrectas");
           setDebugInfo(JSON.stringify(errorData, null, 2));
-        } catch (e) {
+        } catch (_responseError) {
           setError(`Error ${res.status}: ${res.statusText}`);
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("❌ Error al iniciar sesión:", error);
-      setError(`Error de conexión: ${error.message || "No se pudo conectar al servidor"}`);
+
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "No se pudo conectar al servidor";
+
+      setError(`Error de conexión: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

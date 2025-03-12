@@ -1,6 +1,5 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 
 export default function TenantLayout({
@@ -8,9 +7,8 @@ export default function TenantLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [loading, setLoading] = useState(true);
-  const [subdomain, setSubdomain] = useState<string | null>(null);
-  const router = useRouter();
+  const [_loading, setLoading] = useState(true);
+  const [_subdomain, setSubdomain] = useState<string | null>(null);
 
   useEffect(() => {
     // Detectar el subdominio actual

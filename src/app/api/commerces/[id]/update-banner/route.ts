@@ -57,8 +57,8 @@ export async function PUT(
 
       try {
         data = JSON.parse(responseText);
-      } catch (e) {
-        console.error("Error al parsear la respuesta JSON:", e);
+      } catch (_parseError) {
+        console.error("Error al parsear la respuesta JSON:", _parseError);
 
         // Si la respuesta no es JSON pero el status es OK, crear un objeto de respuesta
         if (response.ok) {
@@ -87,8 +87,8 @@ export async function PUT(
 
       // Devolver los datos al cliente
       return NextResponse.json(data);
-    } catch (error) {
-      console.error(`Error al procesar la respuesta: ${error}`);
+    } catch (responseError: unknown) {
+      console.error(`Error al procesar la respuesta: ${responseError instanceof Error ? responseError.message : 'Error desconocido'}`);
 
       // Si hubo un error pero la respuesta fue exitosa, devolver un mensaje genérico de éxito
       if (response.ok) {
@@ -104,11 +104,16 @@ export async function PUT(
         { status: response.status }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const { id } = params;
     console.error(`Proxy /commerces/${id}/update-banner (PUT): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

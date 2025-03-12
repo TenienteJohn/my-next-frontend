@@ -43,11 +43,15 @@ export async function GET(request: NextRequest) {
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy /categories: Error en la solicitud', error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -101,11 +105,15 @@ export async function POST(request: NextRequest) {
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy /categories (POST): Error en la solicitud', error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

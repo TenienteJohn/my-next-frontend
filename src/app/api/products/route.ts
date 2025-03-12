@@ -1,6 +1,19 @@
 // src/app/api/products/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
+interface Product {
+  id: number;
+  name: string;
+  description?: string;
+  price: number | string;
+  category_id: number;
+  image_url?: string;
+}
+
+interface FetchError extends Error {
+  message: string;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
@@ -44,12 +57,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Asegurarnos de que el precio sea un número
-      data = data.map(product => ({
+      data = data.map((product: Product) => ({
         ...product,
         price: typeof product.price === 'number' ? product.price : Number(product.price) || 0
       }));
-    } catch (e) {
-      console.error('Error al parsear respuesta JSON:', e);
+    } catch (_parseError) {
+      console.error('Error al parsear respuesta JSON:', _parseError);
       data = [];
     }
 
@@ -61,7 +74,7 @@ export async function GET(request: NextRequest) {
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy /products: Error en la solicitud', error);
 
     // Devolver un array vacío en caso de error para evitar errores en el cliente
@@ -108,8 +121,8 @@ export async function POST(request: NextRequest) {
       if (!body.category_id) {
         return NextResponse.json({ error: 'La categoría del producto es obligatoria' }, { status: 400 });
       }
-    } catch (error) {
-      console.error("Error al procesar el cuerpo de la solicitud:", error);
+    } catch (_bodyError) {
+      console.error("Error al procesar el cuerpo de la solicitud:", _bodyError);
       return NextResponse.json(
         { error: 'Error al procesar el cuerpo de la solicitud' },
         { status: 400 }
@@ -139,10 +152,15 @@ export async function POST(request: NextRequest) {
         statusText: response.statusText,
         ok: response.ok
       });
-    } catch (fetchError) {
+    } catch (fetchError: unknown) {
       console.error("Error al hacer fetch:", fetchError);
+
+      const errorMessage = fetchError instanceof Error
+        ? fetchError.message
+        : 'Error desconocido de conexión';
+
       return NextResponse.json(
-        { error: `Error de conexión: ${fetchError.message}` },
+        { error: `Error de conexión: ${errorMessage}` },
         { status: 500 }
       );
     }
@@ -164,8 +182,8 @@ export async function POST(request: NextRequest) {
             ? data.product.price
             : Number(data.product.price) || 0;
         }
-      } catch (jsonError) {
-        console.error("La respuesta no es JSON válido:", jsonError);
+      } catch (_jsonError) {
+        console.error("La respuesta no es JSON válido:", _jsonError);
         // Si no es JSON válido, devolver el texto como está
         return NextResponse.json(
           { error: 'Respuesta no válida del servidor', responseText },
@@ -183,17 +201,27 @@ export async function POST(request: NextRequest) {
 
       // Devolver los datos al cliente
       return NextResponse.json(data);
-    } catch (responseError) {
+    } catch (responseError: unknown) {
       console.error("Error al procesar la respuesta:", responseError);
+
+      const errorMessage = responseError instanceof Error
+        ? responseError.message
+        : 'Error desconocido al procesar la respuesta';
+
       return NextResponse.json(
-        { error: `Error al procesar la respuesta: ${responseError.message}` },
+        { error: `Error al procesar la respuesta: ${errorMessage}` },
         { status: 500 }
       );
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy /products (POST): Error general en la solicitud', error);
+
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

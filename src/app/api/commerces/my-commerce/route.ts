@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
         } catch {
           errorMessage = `Error del servidor: ${response.status} ${response.statusText}`;
         }
-      } catch (textError) {
-        console.error('Error al leer el texto de la respuesta:', textError);
+      } catch (_textError) {
+        console.error('Error al leer el texto de la respuesta:', _textError);
       }
 
       return NextResponse.json(
@@ -78,11 +78,15 @@ export async function GET(request: NextRequest) {
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Proxy /commerces/my-commerce: Error en la solicitud', error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }

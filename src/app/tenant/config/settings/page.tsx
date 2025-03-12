@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { motion } from 'framer-motion';
@@ -27,6 +27,17 @@ interface CommerceSettings {
   social_whatsapp?: string;
 }
 
+interface AxiosError {
+  response?: {
+    data?: {
+      error?: string;
+    };
+    status?: number;
+  };
+  request?: unknown;
+  message?: string;
+}
+
 export default function SettingsPage() {
   const [settings, setSettings] = useState<CommerceSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,33 +52,39 @@ export default function SettingsPage() {
   const router = useRouter();
 
   // Cargar configuración actual
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
+  const fetchSettings = useCallback(async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
 
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        const response = await axios.get('/api/commerces/my-commerce', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        setSettings(response.data);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error al cargar configuración:', err);
-        setError(err.response?.data?.error || 'Error al cargar la configuración');
-      } finally {
-        setLoading(false);
+      if (!token) {
+        router.push('/login');
+        return;
       }
-    };
 
-    fetchSettings();
+      const response = await axios.get('/api/commerces/my-commerce', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setSettings(response.data);
+      setError(null);
+    } catch (error: unknown) {
+      console.error('Error al cargar configuración:', error);
+
+      if (error && typeof error === 'object') {
+        const err = error as AxiosError;
+        setError(err.response?.data?.error || 'Error al cargar la configuración');
+      } else {
+        setError('Error al cargar la configuración');
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [router]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   // Manejar cambio en archivos de imagen
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
@@ -178,9 +195,15 @@ export default function SettingsPage() {
 
       setSettings(response.data);
 
-    } catch (err: any) {
-      console.error('Error al guardar configuración:', err);
-      setError(err.response?.data?.error || 'Error al guardar la configuración');
+    } catch (error: unknown) {
+      console.error('Error al guardar configuración:', error);
+
+      if (error && typeof error === 'object') {
+        const err = error as AxiosError;
+        setError(err.response?.data?.error || 'Error al guardar la configuración');
+      } else {
+        setError('Error al guardar la configuración');
+      }
     } finally {
       setSaving(false);
     }

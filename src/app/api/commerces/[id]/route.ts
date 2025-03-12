@@ -54,11 +54,16 @@ export async function PUT(
 
     // Devolver los datos al cliente
     return NextResponse.json(data);
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const { id } = params;
     console.error(`Proxy /commerces/${id} (PUT): Error en la solicitud`, error);
 
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
@@ -108,8 +113,8 @@ export async function DELETE(
       } else {
         data = { message: 'Operación completada' };
       }
-    } catch (parseError) {
-      console.error(`Proxy /commerces/${id} (DELETE): Error al parsear respuesta`, parseError);
+    } catch (_parseError) {
+      console.error(`Proxy /commerces/${id} (DELETE): Error al parsear respuesta`, _parseError);
       data = { message: response.ok ? 'Comercio eliminado correctamente' : 'Error al eliminar comercio' };
     }
 
@@ -123,10 +128,16 @@ export async function DELETE(
 
     // Devolver la respuesta al cliente
     return NextResponse.json(data, { status: response.status });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const { id } = params;
     console.error(`Proxy /commerces/${id} (DELETE): Error en la solicitud`, error);
+
+    const errorMessage = error instanceof Error
+      ? error.message
+      : 'Error desconocido';
+
     return NextResponse.json(
-      { error: `Error en el proxy: ${error.message}` },
+      { error: `Error en el proxy: ${errorMessage}` },
       { status: 500 }
     );
   }
