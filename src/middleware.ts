@@ -7,7 +7,30 @@ export function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || '';
   console.log(`[Middleware] Hostname: ${hostname}`);
 
-  // Obtener el subdominio
+  // Comprobar si es el dominio principal de Vercel
+  const isVercelDeployment = hostname.includes('vercel.app');
+  if (isVercelDeployment) {
+    console.log('[Middleware] Dominio Vercel detectado, manejando como dominio principal');
+
+    // Si es una ruta de admin, permitir el acceso
+    const { pathname } = request.nextUrl;
+    if (pathname.startsWith('/admin')) {
+      console.log('[Middleware] Ruta de admin en Vercel, continuar normalmente');
+      return NextResponse.next();
+    }
+
+    // Si no es login y no es admin, redirigir a login
+    if (!pathname.startsWith('/login') && !pathname.startsWith('/api')) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      console.log(`[Middleware] Redirigiendo a login en Vercel: ${url.pathname}`);
+      return NextResponse.redirect(url);
+    }
+
+    return NextResponse.next();
+  }
+
+  // Obtener el subdominio para otros dominios
   const subdomain = getSubdomain(hostname);
   console.log(`[Middleware] Subdominio detectado: ${subdomain || 'ninguno'}`);
 
