@@ -64,9 +64,8 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
         throw new Error("No se encontró token de autenticación");
       }
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
-
-      const response = await axios.get(`${apiBaseUrl}/api/commerces`, {
+      // Usar la ruta relativa al proxy local en lugar de la URL completa
+      const response = await axios.get(`/api/commerces`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -126,9 +125,8 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       const formData = new FormData();
       formData.append('logo', file);
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
-
-      const response = await axios.put(`${apiBaseUrl}/api/commerces/${commerceId}/update-logo`, formData, {
+      // Usar la ruta relativa al proxy local en lugar de la URL completa
+      const response = await axios.put(`/api/commerces/${commerceId}/update-logo`, formData, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -215,10 +213,8 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
         throw new Error("No se encontró token de autenticación");
       }
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://cartaenlinea-67dbc62791d3.herokuapp.com';
-
-      // Primero verificamos la contraseña del superuser
-      await axios.post(`${apiBaseUrl}/api/auth/verify-password`, {
+      // Usar la ruta relativa al proxy local en lugar de la URL completa
+      await axios.post(`/api/auth/verify-password`, {
         password: deletePassword
       }, {
         headers: {
@@ -232,7 +228,8 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
       });
 
       // Si la contraseña es correcta, procedemos a eliminar el comercio
-      await axios.delete(`${apiBaseUrl}/api/commerces/${commerceToDelete.id}`, {
+      // Usar la ruta relativa al proxy local en lugar de la URL completa
+      await axios.delete(`/api/commerces/${commerceToDelete.id}`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
