@@ -49,9 +49,12 @@ export default function CategoriesManagement() {
       console.log('Categorías recibidas:', response.data);
       setCategories(response.data);
       setError(null);
-    } catch (err: any) {
-      console.error('Error al cargar categorías:', err);
-      setError(err.response?.data?.error || 'Error al cargar las categorías');
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error
+        ? error.message
+        : 'Error desconocido';
+      console.error('Error:', errorMessage);
+      // ...
     } finally {
       setLoading(false);
     }
