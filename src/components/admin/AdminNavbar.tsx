@@ -1,4 +1,4 @@
-// src/components/admin/AdminNavbar.tsx
+// src/components/admin/AdminNavbar.tsx expect
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
