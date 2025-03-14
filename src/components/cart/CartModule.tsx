@@ -45,7 +45,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
   };
 
   // Calcular el precio total
-  const totalPrice = product.price * quantity;
+  const totalPrice = (product.price || 0) * (quantity || 1);
 
   // Incrementar y decrementar cantidad
   const incrementQuantity = () => setQuantity(prev => prev + 1);
