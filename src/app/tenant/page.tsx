@@ -436,11 +436,6 @@ export default function TenantLandingPage() {
                           msOverflowStyle: 'none'
                         }}
                       >
-                        <button
-                          className="flex-shrink-0 px-4 whitespace-nowrap font-bold transition mr-6 text-black border-b-2 border-black pb-1"
-                        >
-                          Populares
-                        </button>
                         {categories.map((category) => (
                           <button
                             key={category.id}
@@ -460,7 +455,7 @@ export default function TenantLandingPage() {
                   {/* Productos estilo Rappi con diseño cuadrado */}
                         <div className="px-4 pt-6 pb-20">
                           <h2 className="text-3xl font-bold mb-4">
-                            {categories.find(cat => cat.id === selectedCategory)?.name || 'Populares'}
+                            {categories.find(cat => cat.id === selectedCategory)?.name || 'Todos los Productos'}
                           </h2>
 
                           <div className="grid grid-cols-2 gap-4">
