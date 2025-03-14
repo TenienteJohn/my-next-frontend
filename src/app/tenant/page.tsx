@@ -421,7 +421,7 @@ export default function TenantLandingPage() {
                                       {/* Botón de agregar (en la esquina superior derecha) */}
                                       <div className="absolute top-2 right-2">
                                         <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
-                                          border-2 border-white/50
+                                          border-2 border-white/100
                                           hover:bg-green-600
                                           transition-all duration-200"
                                         >
