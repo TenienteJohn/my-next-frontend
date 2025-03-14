@@ -31,16 +31,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   // Formateamos el precio para que se vea como en la imagen de referencia
   const formatPrice = (price: number) => {
-    return price.toLocaleString('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).replace('CLP', '$').replace('.', ',');
+    // Asegurémonos de que el precio sea un número
+    const numericPrice = typeof price === 'number' ? price : 0;
+
+    try {
+      // Primero convertimos a string con el formato deseado
+      return numericPrice.toLocaleString('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).replace('CLP', '$').replace('.', ',');
+    } catch (error) {
+      // Si algo falla, usamos una versión más simple
+      return '$' + numericPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
   };
 
   // Precio total basado en la cantidad
-  const totalPrice = product.price * quantity;
+  const totalPrice = (product.price || 0) * (quantity || 1);
 
   return (
     <AnimatePresence>
