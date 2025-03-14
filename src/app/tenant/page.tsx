@@ -392,58 +392,58 @@ export default function TenantLandingPage() {
                           <div className="grid grid-cols-2 gap-4">
                             <AnimatePresence>
                               {currentCategoryProducts.map((product) => (
-                                <motion.div
-                                  key={product.id}
-                                  initial={{ opacity: 0, y: 20 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -20 }}
-                                  className="pb-6 relative"
-                                >
-                                  {/* Contenedor principal del producto */}
-                                  <div className="rounded-lg overflow-hidden relative">
-                                    {/* Imagen del producto */}
-                                    <div className="relative w-full h-44 bg-gray-100">
-                                      {product.image_url ? (
-                                        <Image
-                                          src={product.image_url}
-                                          alt={product.name}
-                                          fill
-                                          style={{ objectFit: 'cover' }}
-                                        />
-                                      ) : (
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                          </svg>
-                                        </div>
-                                      )}
-
-                                      {/* Botón de agregar (en la esquina superior derecha) */}
-                                      <div className="absolute top-2 right-2">
-                                        <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
-                                          border-2 border-white/100
-                                          hover:bg-green-600
-                                          transition-all duration-200"
-                                        >
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="white">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                          </svg>
-                                        </button>
+                              <motion.div
+                                key={product.id}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -20 }}
+                                className="pb-6 relative"
+                              >
+                                {/* Contenedor principal del producto */}
+                                <div className="rounded-lg overflow-hidden relative"> {/* Esta clase ya estaba presente */}
+                                  {/* Imagen del producto */}
+                                  <div className="relative w-full h-44 bg-gray-100">
+                                    {product.image_url ? (
+                                      <Image
+                                        src={product.image_url}
+                                        alt={product.name}
+                                        fill
+                                        style={{ objectFit: 'cover' }}
+                                      />
+                                    ) : (
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                        </svg>
                                       </div>
-                                    </div>
+                                    )}
 
-                                    {/* Información del producto (debajo de la imagen) */}
-                                    <div className="mt-2">
-                                      <div className="text-xl font-bold text-gray-900">
-                                        {formatPrice(product.price)}
-                                      </div>
-                                      <h3 className="text-gray-800 font-medium line-clamp-2">{product.name}</h3>
-                                      {product.description && (
-                                        <p className="text-gray-500 text-sm mt-1 line-clamp-2">{product.description}</p>
-                                      )}
+                                    {/* Botón de agregar (en la esquina superior derecha) */}
+                                    <div className="absolute top-2 right-2">
+                                      <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
+                                        border border-white/40
+                                        hover:bg-green-600
+                                        transition-all duration-200"
+                                      >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="white">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                      </button>
                                     </div>
                                   </div>
-                                </motion.div>
+
+                                  {/* Información del producto (debajo de la imagen) */}
+                                  <div className="mt-2 rounded-b-lg overflow-hidden"> {/* Añadir rounded-b-lg */}
+                                    <div className="text-xl font-bold text-gray-900">
+                                      {formatPrice(product.price)}
+                                    </div>
+                                    <h3 className="text-gray-800 font-medium line-clamp-2">{product.name}</h3>
+                                    {product.description && (
+                                      <p className="text-gray-500 text-sm mt-1 line-clamp-2">{product.description}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
                               ))}
                             </AnimatePresence>
                           </div>
