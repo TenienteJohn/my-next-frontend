@@ -18,7 +18,7 @@ export function middleware(request: NextRequest) {
     });
   }
 
-  // Obtener el hostname (por ejemplo: burguer.cartaenlinea.com)
+  // Obtener el hostname (por ejemplo: burguer.menunube.online)
   const hostname = request.headers.get('host') || '';
   console.log(`[Middleware] Hostname: ${hostname}`);
 
@@ -59,7 +59,7 @@ export function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
   console.log(`[Middleware] ¿Es ruta pública?: ${isPublicRoute}`);
 
-  // Si es el dominio principal sin subdominio (cartaenlinea.com), mostrar la página principal
+  // Si es el dominio principal sin subdominio, mostrar la página principal
   if (!subdomain) {
     console.log('[Middleware] Sin subdominio, continuar normalmente');
     return NextResponse.next();
@@ -84,7 +84,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // Para la landing page pública del tenant (ej. burguer.cartaenlinea.com/)
+  // Para la landing page pública del tenant (ej. burguer.menunube.online/)
   url.pathname = `/tenant${pathname}`;
   console.log(`[Middleware] Reescribiendo a: ${url.pathname}`);
   return NextResponse.rewrite(url);
@@ -92,10 +92,7 @@ export function middleware(request: NextRequest) {
 
 // Función para extraer el subdominio
 function getSubdomain(hostname: string): string | null {
-  // En desarrollo: test.localhost:3000 -> test
-  // En producción: burguer.cartaenlinea.com -> burguer
-
-  // Manejo específico para localhost en desarrollo
+  // Manejo para localhost en desarrollo
   if (hostname.includes('localhost')) {
     const parts = hostname.split('.');
     if (parts.length > 1 && parts[0] !== 'www' && parts[0] !== 'localhost') {
@@ -104,10 +101,18 @@ function getSubdomain(hostname: string): string | null {
     return null;
   }
 
-  // Para dominios en producción (Vercel)
+  // Manejo para menunube.online y otros dominios en producción
   const domainParts = hostname.split('.');
 
-  // Si el formato es [subdominio].[dominio].[tld]
+  // Si el formato es [subdominio].menunube.online
+  if (domainParts.length >= 3 &&
+      (domainParts[domainParts.length - 2] === 'menunube' &&
+       domainParts[domainParts.length - 1] === 'online') &&
+      domainParts[0] !== 'www') {
+    return domainParts[0];
+  }
+
+  // Mantener lógica para otros dominios como cartaenlinea.com
   if (domainParts.length >= 3 && domainParts[0] !== 'www') {
     return domainParts[0];
   }
