@@ -220,14 +220,23 @@ export const CartView: React.FC<{
   // Calcular el total
   const totalAmount = items.reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
 
-  // Formatear el precio
+  // Formatear el precio con separadores de miles (usando coma como en la imagen)
   const formatPrice = (price: number) => {
-    return price.toLocaleString('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).replace('CLP', '$').replace('.', ',');
+    // Asegurémonos de que el precio sea un número (boton agregar)
+    const numericPrice = typeof price === 'number' ? price : 0;
+
+    try {
+      // Primero convertimos a string con el formato deseado
+      return numericPrice.toLocaleString('es-CL', {
+        style: 'currency',
+        currency: 'CLP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).replace('CLP', '$').replace('.', ',');
+    } catch (error) {
+      // Si algo falla, usamos una versión más simple
+      return '$' + numericPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
   };
 
   // Si el modal no está abierto, no renderizar nada
