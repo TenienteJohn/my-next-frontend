@@ -421,13 +421,16 @@ export default function TenantLandingPage() {
 
                     {/* Botón de agregar (en la esquina superior derecha) */}
                     <div className="absolute top-2 right-2">
-                      <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center">
+                      <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
+                        border-2 border-white/30 // Añade este clase
+                        hover:bg-green-600 // Opcional: efecto de hover
+                        transition-all duration-200 // Opcional: transición suave
+                      ">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="white">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
                       </button>
                     </div>
-                  </div>
 
                   {/* Información del producto (debajo de la imagen) */}
                   <div className="mt-2">
