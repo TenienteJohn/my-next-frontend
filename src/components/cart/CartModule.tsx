@@ -159,7 +159,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
                   onClick={handleAddToCart}
                   className="bg-green-500 text-white font-bold py-3 px-6 rounded-full hover:bg-green-600 transition-colors"
                 >
-                  Agregar {formatPrice(totalPrice)}
+                  Agregar {formatPrice(Number(product.price || 0) * Number(quantity || 1))}
                 </button>
               </div>
             </div>
@@ -222,21 +222,28 @@ export const CartView: React.FC<{
 
   // Formatear el precio con separadores de miles (usando coma como en la imagen)
   const formatPrice = (price: number) => {
-    // Asegurémonos de que el precio sea un número (boton agregar)
-    const numericPrice = typeof price === 'number' ? price : 0;
+    // Asegurar que es un número
+    const numericPrice = Number(price) || 0;
 
-    try {
-      // Primero convertimos a string con el formato deseado
-      return numericPrice.toLocaleString('es-CL', {
-        style: 'currency',
-        currency: 'CLP',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-      }).replace('CLP', '$').replace('.', ',');
-    } catch (error) {
-      // Si algo falla, usamos una versión más simple
-      return '$' + numericPrice.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    // Convertir a entero (quitar decimales)
+    const intPrice = Math.round(numericPrice);
+
+    // Formatear manualmente
+    const priceString = intPrice.toString();
+    let formattedPrice = '';
+
+    // Agregar separadores de miles (puntos para formato chileno)
+    for (let i = 0; i < priceString.length; i++) {
+      if (i > 0 && (priceString.length - i) % 3 === 0) {
+        formattedPrice += '.';
+      }
+      formattedPrice += priceString[i];
     }
+
+    // Reemplazar punto por coma según el formato chileno mostrado en la imagen
+    formattedPrice = formattedPrice.replace(/\./g, ',');
+
+    return '$' + formattedPrice;
   };
 
   // Si el modal no está abierto, no renderizar nada
