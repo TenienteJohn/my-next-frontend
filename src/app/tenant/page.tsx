@@ -254,7 +254,7 @@ export default function TenantLandingPage() {
 
           {/* Etiqueta de Abierto/Cerrado */}
           {commerce.is_open !== undefined && (
-            <div className="absolute top-4 right-4z-10">
+            <div className="absolute top-4 right-8">
             {commerce.is_open ? (
                           <span className="bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
                             ABIERTO
