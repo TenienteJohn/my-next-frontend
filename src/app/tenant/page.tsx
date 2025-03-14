@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import Image from 'next/image';
 import Link from 'next/link';
+import { CartModule, CartButton, CartView } from '@/components/cart/CartModule';
+import { ProductDetailModal } from '@/components/cart/ProductDetailModal';
 
 interface Product {
   id: number;
@@ -42,6 +44,32 @@ export default function TenantLandingPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>('delivery');
+
+  // Estados para el carrito
+  const [cartItems, setCartItems] = useState<(Product & { quantity: number })[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
+  // Estados para UI
+  const [useModalView, setUseModalView] = useState(false); // Determina qué tipo de visualización usar
+
+  // Cargar carrito del localStorage al iniciar
+  useEffect(() => {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+      try {
+        setCartItems(JSON.parse(savedCart));
+      } catch (e) {
+        console.error('Error al cargar el carrito:', e);
+      }
+    }
+  }, []);
+
+  // Guardar carrito en localStorage cuando cambie
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cartItems));
+  }, [cartItems]);
 
   const fetchTenantData = useCallback(async () => {
     try {
@@ -120,6 +148,52 @@ export default function TenantLandingPage() {
   useEffect(() => {
     fetchTenantData();
   }, [fetchTenantData]);
+
+  // Funciones para manejar el carrito
+  const handleAddToCart = (product: Product, quantity: number) => {
+    setCartItems(prevItems => {
+      // Verificar si el producto ya está en el carrito
+      const existingItemIndex = prevItems.findIndex(item => item.id === product.id);
+
+      if (existingItemIndex >= 0) {
+        // Si el producto ya existe, actualizamos la cantidad
+        const updatedItems = [...prevItems];
+        updatedItems[existingItemIndex] = {
+          ...updatedItems[existingItemIndex],
+          quantity: (updatedItems[existingItemIndex].quantity || 0) + quantity
+        };
+        return updatedItems;
+      } else {
+        // Si es un producto nuevo, lo añadimos al carrito
+        return [...prevItems, { ...product, quantity }];
+      }
+    });
+  };
+
+  const handleUpdateQuantity = (productId: number, newQuantity: number) => {
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item.id === productId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+  };
+
+  const handleRemoveItem = (productId: number) => {
+    setCartItems(prevItems => prevItems.filter(item => item.id !== productId));
+  };
+
+  const handleCheckout = () => {
+    // Aquí iría la lógica para procesar el pedido
+    alert('¡Pedido realizado con éxito!');
+    setCartItems([]);
+    setIsCartOpen(false);
+  };
+
+  // Calcular el total de items en el carrito
+  const totalItemsInCart = cartItems.reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  // Calcular el monto total del carrito
+  const totalCartAmount = cartItems.reduce((sum, item) => sum + (item.price * (item.quantity || 0)), 0);
 
   // Obtener productos de la categoría seleccionada
   const currentCategoryProducts = selectedCategory
@@ -402,7 +476,7 @@ export default function TenantLandingPage() {
                                   {/* Contenedor principal del producto */}
                                   <div className="rounded-lg overflow-hidden relative">
                                     {/* Imagen del producto */}
-                                    <div className="relative w-full h-44 bg-gray-100">
+                                    <div className="relative w-full h-44 bg-gray-100 rounded-lg overflow-hidden">
                                       {product.image_url ? (
                                         <Image
                                           src={product.image_url}
@@ -420,7 +494,12 @@ export default function TenantLandingPage() {
 
                                       {/* Botón de agregar (en la esquina superior derecha) */}
                                       <div className="absolute top-2 right-2">
-                                        <button className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
+                                        <button
+                                          onClick={() => {
+                                            setSelectedProduct(product);
+                                            setIsProductModalOpen(true);
+                                          }}
+                                          className="bg-green-500 text-white p-2 rounded-full shadow-lg w-10 h-10 flex items-center justify-center
                                           border-2 border-white/100
                                           hover:bg-green-600
                                           transition-all duration-200"
@@ -459,12 +538,50 @@ export default function TenantLandingPage() {
                         </div>
 
                         {/* Footer simplificado */}
-                        <footer className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 text-center text-gray-500 text-xs">
+                        <footer className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 text-center text-gray-500 text-xs z-10">
                           <p>© {new Date().getFullYear()} {commerce.business_name}</p>
                           <p className="mt-1">
                             Desarrollado por <a href="https://cartaenlinea.com" className="text-blue-500">CartaEnLinea</a>
                           </p>
                         </footer>
+
+                        {/* Componentes del carrito */}
+                        {selectedProduct && (
+                          <>
+                            {useModalView ? (
+                              <ProductDetailModal
+                                isOpen={isProductModalOpen}
+                                onClose={() => setIsProductModalOpen(false)}
+                                product={selectedProduct}
+                                onAddToCart={handleAddToCart}
+                              />
+                            ) : (
+                              <CartModule
+                                isOpen={isProductModalOpen}
+                                onClose={() => setIsProductModalOpen(false)}
+                                product={selectedProduct}
+                                onAddToCart={handleAddToCart}
+                              />
+                            )}
+                          </>
+                        )}
+
+                        {/* Botón flotante de carrito */}
+                        <CartButton
+                          itemCount={totalItemsInCart}
+                          totalAmount={totalCartAmount}
+                          onClick={() => setIsCartOpen(true)}
+                        />
+
+                        {/* Vista del carrito completo */}
+                        <CartView
+                          isOpen={isCartOpen}
+                          onClose={() => setIsCartOpen(false)}
+                          items={cartItems}
+                          onUpdateQuantity={handleUpdateQuantity}
+                          onRemoveItem={handleRemoveItem}
+                          onCheckout={handleCheckout}
+                        />
                       </div>
                     );
                   }
