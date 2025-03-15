@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -10,6 +10,7 @@ interface Category {
   id: number;
   name: string;
   commerce_id: number;
+  position?: number; // Añadimos position para mantener el orden
   created_at?: string;
   updated_at?: string;
 }
@@ -23,6 +24,8 @@ export default function CategoriesManagement() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
+  const [isSavingOrder, setIsSavingOrder] = useState(false);
+  const [orderChanged, setOrderChanged] = useState(false);
   const router = useRouter();
 
   // Cargar las categorías al inicio
@@ -47,14 +50,28 @@ export default function CategoriesManagement() {
       });
 
       console.log('Categorías recibidas:', response.data);
-      setCategories(response.data);
+
+      // Ordenar categorías por la propiedad position si existe, o mantener el orden actual
+      const sortedCategories = [...response.data].sort((a, b) => {
+        // Si ambos tienen position, ordenar por position
+        if (a.position !== undefined && b.position !== undefined) {
+          return a.position - b.position;
+        }
+        // Si solo uno tiene position, poner primero el que tiene position
+        if (a.position !== undefined) return -1;
+        if (b.position !== undefined) return 1;
+        // Si ninguno tiene position, mantener el orden original
+        return 0;
+      });
+
+      setCategories(sortedCategories);
       setError(null);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error
         ? error.message
         : 'Error desconocido';
       console.error('Error:', errorMessage);
-      // ...
+      setError('Error al cargar las categorías. Por favor, intenta de nuevo.');
     } finally {
       setLoading(false);
     }
@@ -75,17 +92,28 @@ export default function CategoriesManagement() {
         return;
       }
 
+      // Calcular la siguiente posición (al final de la lista)
+      const nextPosition = categories.length;
+
       // Usar el proxy local en lugar del endpoint directo
       console.log('Enviando solicitud de creación de categoría...');
       const response = await axios.post(`/api/categories`,
-        { name: newCategoryName },
+        {
+          name: newCategoryName,
+          position: nextPosition // Añadir position al crear
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
       console.log('Respuesta de creación:', response.data);
 
       // Agregar la nueva categoría a la lista
-      setCategories([...categories, response.data.category]);
+      const newCategory = response.data.category || response.data;
+      setCategories([...categories, {
+        ...newCategory,
+        position: nextPosition
+      }]);
+
       setNewCategoryName('');
       setError(null);
     } catch (err: any) {
@@ -114,7 +142,10 @@ export default function CategoriesManagement() {
       console.log('Actualizando categoría...');
       const response = await axios.put(
         `/api/categories/${editingCategory.id}`,
-        { name: editingCategory.name },
+        {
+          name: editingCategory.name,
+          position: editingCategory.position // Mantener la posición al actualizar
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -153,15 +184,78 @@ export default function CategoriesManagement() {
       console.log('Respuesta de eliminación:', response.data);
 
       // Eliminar la categoría de la lista
-      setCategories(categories.filter(cat => cat.id !== categoryToDelete.id));
+      setCategories(prevCategories => {
+        const newCategories = prevCategories.filter(cat => cat.id !== categoryToDelete.id);
+
+        // Reordenar las posiciones de todas las categorías restantes
+        return newCategories.map((cat, index) => ({
+          ...cat,
+          position: index
+        }));
+      });
+
       setCategoryToDelete(null);
       setShowDeleteModal(false);
       setError(null);
+
+      // Guardar el nuevo orden después de eliminar
+      saveNewOrder([...categories].filter(cat => cat.id !== categoryToDelete.id));
+
     } catch (err: any) {
       console.error('Error al eliminar categoría:', err);
       setError(err.response?.data?.error || 'Error al eliminar la categoría. Podría contener productos asociados.');
       setShowDeleteModal(false);
     }
+  };
+
+  // Nueva función para guardar el orden de las categorías
+  const saveNewOrder = async (orderedCategories: Category[] = categories) => {
+    try {
+      setIsSavingOrder(true);
+      const token = localStorage.getItem('token');
+
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      // Crear array con el nuevo orden para enviar al backend
+      const orderData = orderedCategories.map((cat, index) => ({
+        id: cat.id,
+        position: index
+      }));
+
+      // Enviar el nuevo orden al backend
+      await axios.post(
+        `/api/categories/reorder`,
+        { categories: orderData },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Actualizar el estado local con el nuevo orden
+      setCategories(orderedCategories.map((cat, index) => ({
+        ...cat,
+        position: index
+      })));
+
+      setOrderChanged(false);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error al guardar el orden:', err);
+      setError(err.response?.data?.error || 'Error al guardar el orden de las categorías');
+    } finally {
+      setIsSavingOrder(false);
+    }
+  };
+
+  const handleReorder = (reorderedList: Category[]) => {
+    // Actualizar la lista con el nuevo orden
+    setCategories(reorderedList.map((item, index) => ({
+      ...item,
+      position: index // Actualizar la posición basada en el nuevo índice
+    })));
+
+    setOrderChanged(true); // Indicar que el orden ha cambiado y no se ha guardado
   };
 
   if (loading && categories.length === 0) {
@@ -243,10 +337,31 @@ export default function CategoriesManagement() {
           </CardContent>
         </Card>
 
-        {/* Lista de categorías */}
+        {/* Lista de categorías con reordenamiento */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-4 bg-gray-50 border-b">
+          <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
             <h2 className="text-lg font-semibold">Tus Categorías</h2>
+
+            {/* Botón para guardar cambios en el orden */}
+            {orderChanged && (
+              <Button
+                onClick={() => saveNewOrder()}
+                disabled={isSavingOrder}
+                className="bg-green-500 hover:bg-green-600 text-white text-sm"
+              >
+                {isSavingOrder ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Guardando...
+                  </>
+                ) : (
+                  'Guardar Orden'
+                )}
+              </Button>
+            )}
           </div>
 
           {categories.length === 0 ? (
@@ -254,71 +369,95 @@ export default function CategoriesManagement() {
               No tienes categorías creadas. Crea una nueva categoría para comenzar.
             </div>
           ) : (
-            <ul className="divide-y divide-gray-200">
-              <AnimatePresence>
-                {categories.map((category) => (
-                  <motion.li
-                    key={category.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
-                    layout
-                    className="p-4 flex items-center justify-between"
-                  >
-                    {editingCategory && editingCategory.id === category.id ? (
-                      <div className="flex-1 flex items-center space-x-2">
-                        <input
-                          type="text"
-                          value={editingCategory.name}
-                          onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
-                          className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          autoFocus
-                        />
-                        <Button
-                          onClick={handleUpdateCategory}
-                          className="bg-green-500 hover:bg-green-600 text-white py-1 px-2"
-                          disabled={!editingCategory.name.trim()}
-                        >
-                          Guardar
-                        </Button>
-                        <Button
-                          onClick={() => setEditingCategory(null)}
-                          variant="outline"
-                          className="py-1 px-2"
-                        >
-                          Cancelar
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <span className="flex-1 text-gray-800">{category.name}</span>
-                        <div className="flex space-x-2">
+            <div className="border-t border-gray-200">
+              <Reorder.Group
+                axis="y"
+                values={categories}
+                onReorder={handleReorder}
+                className="divide-y divide-gray-200"
+              >
+                <AnimatePresence>
+                  {categories.map((category) => (
+                    <Reorder.Item
+                      key={category.id}
+                      value={category}
+                      initial={{ opacity: 0, y: -20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 20 }}
+                      className="p-4 flex items-center justify-between bg-white cursor-move"
+                    >
+                      {editingCategory && editingCategory.id === category.id ? (
+                        <div className="flex-1 flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={editingCategory.name}
+                            onChange={(e) => setEditingCategory({...editingCategory, name: e.target.value})}
+                            className="flex-1 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            autoFocus
+                          />
                           <Button
-                            onClick={() => setEditingCategory(category)}
-                            variant="outline"
-                            className="text-blue-500 border-blue-500 hover:bg-blue-50"
+                            onClick={handleUpdateCategory}
+                            className="bg-green-500 hover:bg-green-600 text-white py-1 px-2"
+                            disabled={!editingCategory.name.trim()}
                           >
-                            Editar
+                            Guardar
                           </Button>
                           <Button
-                            onClick={() => {
-                              setCategoryToDelete(category);
-                              setShowDeleteModal(true);
-                            }}
+                            onClick={() => setEditingCategory(null)}
                             variant="outline"
-                            className="text-red-500 border-red-500 hover:bg-red-50"
+                            className="py-1 px-2"
                           >
-                            Eliminar
+                            Cancelar
                           </Button>
                         </div>
-                      </>
-                    )}
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ul>
+                      ) : (
+                        <>
+                          <div className="flex items-center flex-1">
+                            {/* Icono de arrastrar */}
+                            <div className="mr-3 text-gray-400">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                              </svg>
+                            </div>
+                            <span className="text-gray-800">{category.name}</span>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={() => setEditingCategory(category)}
+                              variant="outline"
+                              className="text-blue-500 border-blue-500 hover:bg-blue-50"
+                            >
+                              Editar
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setCategoryToDelete(category);
+                                setShowDeleteModal(true);
+                              }}
+                              variant="outline"
+                              className="text-red-500 border-red-500 hover:bg-red-50"
+                            >
+                              Eliminar
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </Reorder.Item>
+                  ))}
+                </AnimatePresence>
+              </Reorder.Group>
+            </div>
           )}
         </div>
+
+        {/* Instrucciones sobre ordenamiento */}
+        {categories.length > 0 && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-md text-blue-800 text-sm">
+            <p className="font-medium">Instrucciones de uso:</p>
+            <p>Arrastra y suelta las categorías para cambiar su orden. Haz clic en "Guardar Orden" después de reorganizar.</p>
+            <p>Este orden se reflejará en cómo se muestran las categorías en el menú de tu negocio.</p>
+          </div>
+        )}
       </motion.div>
 
       {/* Modal de confirmación para eliminar */}

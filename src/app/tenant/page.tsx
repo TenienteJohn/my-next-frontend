@@ -58,6 +58,8 @@ export default function TenantLandingPage() {
   const [visibleCategory, setVisibleCategory] = useState<number | null>(null);
   const categoryRefs = useRef<{[key: number]: HTMLDivElement | null}>({});
   const tabsRef = useRef<HTMLDivElement>(null);
+  const tabsScrollContainerRef = useRef<HTMLDivElement>(null);
+  const tabButtonRefs = useRef<{[key: number]: HTMLButtonElement | null}>({});
 
   // Cargar carrito del localStorage al iniciar
   useEffect(() => {
@@ -75,6 +77,28 @@ export default function TenantLandingPage() {
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
   }, [cartItems]);
+
+  // Función para hacer scroll horizontal en los tabs
+  const scrollTabToCategory = (categoryId: number) => {
+    // Si no hay contenedor de tabs o botón, salir
+    const tabsContainer = tabsScrollContainerRef.current;
+    const tabButton = tabButtonRefs.current[categoryId];
+
+    if (!tabsContainer || !tabButton) return;
+
+    // Obtener dimensiones y posiciones
+    const containerRect = tabsContainer.getBoundingClientRect();
+    const buttonRect = tabButton.getBoundingClientRect();
+
+    // Calcular la posición para centrar el botón en el contenedor
+    const scrollLeft = buttonRect.left + tabsContainer.scrollLeft - containerRect.left - (containerRect.width / 2) + (buttonRect.width / 2);
+
+    // Hacer scroll horizontal suave
+    tabsContainer.scrollTo({
+      left: scrollLeft,
+      behavior: 'smooth'
+    });
+  };
 
   // Efecto para manejar el scroll y actualizar la categoría visible
   useEffect(() => {
@@ -105,6 +129,9 @@ export default function TenantLandingPage() {
       if (closestCategory && closestCategory.id !== visibleCategory) {
         setVisibleCategory(closestCategory.id);
         setSelectedCategory(closestCategory.id);
+
+        // Scroll horizontal del tab cuando cambia la categoría visible
+        scrollTabToCategory(closestCategory.id);
       }
     };
 
@@ -227,6 +254,9 @@ export default function TenantLandingPage() {
 
     setSelectedCategory(categoryId);
     setVisibleCategory(categoryId);
+
+    // Scroll horizontal para el tab
+    scrollTabToCategory(categoryId);
   };
 
   // Funciones para manejar el carrito
@@ -504,6 +534,7 @@ export default function TenantLandingPage() {
       <div className="sticky top-0 bg-white z-30 border-b">
         <div className="relative" ref={tabsRef}>
           <div
+            ref={tabsScrollContainerRef}
             className="flex overflow-x-auto scrollbar-hide py-3 px-4"
             style={{
               WebkitOverflowScrolling: 'touch',
@@ -514,6 +545,7 @@ export default function TenantLandingPage() {
             {categories.map((category) => (
               <button
                 key={category.id}
+                ref={(el) => tabButtonRefs.current[category.id] = el}
                 onClick={() => scrollToCategory(category.id)}
                 className={`flex-shrink-0 px-4 whitespace-nowrap font-medium transition mr-6 ${
                   visibleCategory === category.id
