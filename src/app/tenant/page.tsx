@@ -594,8 +594,14 @@ export default function TenantLandingPage() {
                       >
                         {/* Contenedor principal del producto */}
                         <div className="rounded-lg overflow-hidden relative">
-                          {/* Imagen del producto */}
-                          <div className="relative w-full h-44 bg-gray-100 rounded-lg overflow-hidden">
+                          {/* Imagen del producto - ahora clickeable */}
+                          <div
+                            className="relative w-full h-44 bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setIsProductModalOpen(true);
+                            }}
+                          >
                             {product.image_url ? (
                               <Image
                                 src={product.image_url}
@@ -612,7 +618,7 @@ export default function TenantLandingPage() {
                             )}
 
                             {/* Botón de agregar (en la esquina superior derecha) */}
-                            <div className="absolute top-2 right-2">
+                            <div className="absolute top-2 right-2" onClick={e => e.stopPropagation()}>
                               <button
                                 onClick={() => {
                                   setSelectedProduct(product);
@@ -630,8 +636,14 @@ export default function TenantLandingPage() {
                             </div>
                           </div>
 
-                          {/* Información del producto (debajo de la imagen) */}
-                          <div className="mt-2">
+                          {/* Información del producto (debajo de la imagen) - ahora también clickeable */}
+                          <div
+                            className="mt-2 cursor-pointer"
+                            onClick={() => {
+                              setSelectedProduct(product);
+                              setIsProductModalOpen(true);
+                            }}
+                          >
                             <div className="text-xl font-bold text-gray-900">
                               {formatPrice(product.price)}
                             </div>
