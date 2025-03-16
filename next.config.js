@@ -8,9 +8,8 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Configuración de imágenes
+  // Configuración de imágenes - solo usar remotePatterns
   images: {
-    domains: ["res.cloudinary.com"], // ✅ Permite imágenes desde Cloudinary
     remotePatterns: [
       {
         protocol: "https",
