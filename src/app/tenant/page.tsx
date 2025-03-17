@@ -672,6 +672,7 @@ export default function TenantLandingPage() {
                                               src={product.image_url}
                                               alt={product.name}
                                               fill
+                                              sizes="(max-width: 768px) 100vw, 50vw"
                                               style={{ objectFit: 'cover' }}
                                             />
                                           ) : (
