@@ -71,234 +71,204 @@ export default function ProductsManagement() {
   const router = useRouter();
 
   // Cargar productos y categorías al inicio
-    useEffect(() => {
-      fetchProductsAndCategories();
-    }, []);
+  useEffect(() => {
+    fetchProductsAndCategories();
+  }, []);
 
-    const fetchProductsAndCategories = async () => {
-      try {
-        setLoading(true);
-        const token = localStorage.getItem('token');
+  const fetchProductsAndCategories = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
 
-        if (!token) {
-          router.push('/login');
-          return;
-        }
+      if (!token) {
+        router.push('/login');
+        return;
+      }
 
-        // Cargar categorías
-        const categoriesResponse = await axios.get(`/api/categories`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+      // Cargar categorías
+      const categoriesResponse = await axios.get(`/api/categories`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-        const categoriesData = Array.isArray(categoriesResponse.data)
-          ? categoriesResponse.data
-          : [];
+      const categoriesData = Array.isArray(categoriesResponse.data)
+        ? categoriesResponse.data
+        : [];
 
-        setCategories(categoriesData);
+      setCategories(categoriesData);
 
-        // Establecer categoría por defecto si hay categorías
-        if (categoriesData.length > 0) {
-          setCurrentProduct(prev => ({
-            ...prev,
-            category_id: categoriesData[0].id
-          }));
-        }
-
-        // Cargar productos
-        const productsResponse = await axios.get(`/api/products`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        const productsData = Array.isArray(productsResponse.data)
-          ? productsResponse.data
-          : [];
-
-        // Procesar productos
-        const processedProducts = productsData.map(product => ({
-          ...product,
-          price: typeof product.price === 'number' ? product.price : Number(product.price) || 0
+      // Establecer categoría por defecto si hay categorías
+      if (categoriesData.length > 0) {
+        setCurrentProduct(prev => ({
+          ...prev,
+          category_id: categoriesData[0].id
         }));
-
-        setProducts(processedProducts);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error al cargar datos:', err);
-        setError(err.response?.data?.error || 'Error al cargar datos');
-        setProducts([]);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      if (e.target.files && e.target.files[0]) {
-        const file = e.target.files[0];
-        setSelectedFile(file);
-
-        // Crear vista previa
-        const fileUrl = URL.createObjectURL(file);
-        setPreviewUrl(fileUrl);
-
-        // Limpiar URL cuando el componente se desmonte
-        return () => URL.revokeObjectURL(fileUrl);
-      }
-    };
-
-    const resetForm = () => {
-      setCurrentProduct({
-        name: '',
-        description: '',
-        price: 0,
-        category_id: categories.length > 0 ? categories[0].id : 0
+      // Cargar productos
+      const productsResponse = await axios.get(`/api/products`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      setSelectedFile(null);
-      setPreviewUrl(null);
-    };
 
-const handleCreateProduct = async (e: React.FormEvent) => {
-  e.preventDefault();
+      const productsData = Array.isArray(productsResponse.data)
+        ? productsResponse.data
+        : [];
 
-  console.group('Creación de Producto');
-  console.log('Datos de entrada:', {
-    producto: currentProduct,
-    categorias: categories,
-    archivo: selectedFile ? {
-      nombre: selectedFile.name,
-      tipo: selectedFile.type,
-      tamaño: selectedFile.size
-    } : null
-  });
+      // Procesar productos
+      const processedProducts = productsData.map(product => ({
+        ...product,
+        price: typeof product.price === 'number' ? product.price : Number(product.price) || 0
+      }));
 
-  // Validaciones previas
-  const errores = [];
-  if (!currentProduct.name?.trim()) errores.push('Nombre requerido');
-  if (!currentProduct.category_id) errores.push('Categoría requerida');
-  if (currentProduct.price === undefined || currentProduct.price < 0) errores.push('Precio inválido');
+      setProducts(processedProducts);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error al cargar datos:', err);
+      setError(err.response?.data?.error || 'Error al cargar datos');
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  if (errores.length > 0) {
-    console.error('Errores de validación:', errores);
-    setError(errores.join(', '));
-    console.groupEnd();
-    return;
-  }
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
 
-  try {
-    const token = localStorage.getItem('token');
-    console.log('Token disponible:', !!token);
+      // Crear vista previa
+      const fileUrl = URL.createObjectURL(file);
+      setPreviewUrl(fileUrl);
 
-    const productData = {
-      name: currentProduct.name.trim(),
-      description: (currentProduct.description || '').trim(),
-      price: Number(currentProduct.price) || 0,
-      category_id: currentProduct.category_id
-    };
+      // Limpiar URL cuando el componente se desmonte
+      return () => URL.revokeObjectURL(fileUrl);
+    }
+  };
 
-    console.log('Datos del producto a enviar:', productData);
+  const resetForm = () => {
+    setCurrentProduct({
+      name: '',
+      description: '',
+      price: 0,
+      category_id: categories.length > 0 ? categories[0].id : 0
+    });
+    setSelectedFile(null);
+    setPreviewUrl(null);
+  };
 
-    const response = await axios.post(`/api/products`, productData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validaciones previas
+    if (!currentProduct.name?.trim()) {
+      setError('El nombre del producto es requerido');
+      return;
+    }
+    if (!currentProduct.category_id) {
+      setError('Debe seleccionar una categoría');
+      return;
+    }
+    if (currentProduct.price === undefined || currentProduct.price < 0) {
+      setError('El precio debe ser mayor o igual a 0');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
       }
-    });
 
-    console.log('Respuesta de creación:', {
-      status: response.status,
-      data: response.data
-    });
+      const productData = {
+        name: currentProduct.name.trim(),
+        description: (currentProduct.description || '').trim(),
+        price: Number(currentProduct.price) || 0,
+        category_id: currentProduct.category_id
+      };
 
-    const newProduct = response.data.product || response.data;
-
-    // Lógica de subida de imagen
-    if (selectedFile && newProduct.id) {
-      const formData = new FormData();
-      formData.append('image', selectedFile);
-
-      try {
-        const imageResponse = await axios.put(
-          `/api/products/${newProduct.id}/update-image`,
-          formData,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data'
-            }
-          }
-        );
-
-        console.log('Respuesta de subida de imagen:', {
-          status: imageResponse.status,
-          data: imageResponse.data
-        });
-
-        if (imageResponse.data?.image_url) {
-          newProduct.image_url = imageResponse.data.image_url;
+      const response = await axios.post(`/api/products`, productData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-      } catch (imageError) {
-        console.error('Error en subida de imagen:', imageError);
-      }
-    }
-
-    // Actualización de lista de productos
-    setProducts(prevProducts => {
-      console.log('Productos previos:', prevProducts);
-
-      const productIndex = prevProducts.findIndex(p => p.id === newProduct.id);
-
-      if (productIndex !== -1) {
-        // Actualizar producto existente
-        const updatedProducts = [...prevProducts];
-        updatedProducts[productIndex] = {
-          ...newProduct,
-          price: typeof newProduct.price === 'number'
-            ? newProduct.price
-            : Number(newProduct.price) || 0
-        };
-        console.log('Producto actualizado:', updatedProducts[productIndex]);
-        return updatedProducts;
-      } else {
-        // Añadir nuevo producto
-        const nuevoProducto = {
-          ...newProduct,
-          price: typeof newProduct.price === 'number'
-            ? newProduct.price
-            : Number(newProduct.price) || 0
-        };
-        console.log('Nuevo producto añadido:', nuevoProducto);
-        return [...prevProducts, nuevoProducto];
-      }
-    });
-
-    // Resetear formulario
-    resetForm();
-    setShowForm(false);
-    setError(null);
-
-    console.log('Producto creado exitosamente');
-  } catch (err) {
-    console.error('Error completo:', err);
-
-    // Manejo detallado de errores
-    if (axios.isAxiosError(err)) {
-      console.error('Detalles del error de Axios:', {
-        response: err.response?.data,
-        status: err.response?.status,
-        headers: err.response?.headers
       });
 
-      setError(
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        'Error al crear el producto'
-      );
-    } else {
-      setError('Error inesperado al crear el producto');
+      const newProduct = response.data.product || response.data;
+
+      // Lógica de subida de imagen
+      if (selectedFile && newProduct.id) {
+        const formData = new FormData();
+        formData.append('image', selectedFile);
+
+        try {
+          const imageResponse = await axios.put(
+            `/api/products/${newProduct.id}/update-image`,
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/form-data'
+              }
+            }
+          );
+
+          if (imageResponse.data?.image_url) {
+            newProduct.image_url = imageResponse.data.image_url;
+          }
+        } catch (imageError) {
+          console.error('Error en subida de imagen:', imageError);
+        }
+      }
+
+      // Actualización de lista de productos
+      setProducts(prevProducts => {
+        const productIndex = prevProducts.findIndex(p => p.id === newProduct.id);
+
+        if (productIndex !== -1) {
+          // Actualizar producto existente
+          const updatedProducts = [...prevProducts];
+          updatedProducts[productIndex] = {
+            ...newProduct,
+            price: typeof newProduct.price === 'number'
+              ? newProduct.price
+              : Number(newProduct.price) || 0
+          };
+          return updatedProducts;
+        } else {
+          // Añadir nuevo producto
+          const nuevoProducto = {
+            ...newProduct,
+            price: typeof newProduct.price === 'number'
+              ? newProduct.price
+              : Number(newProduct.price) || 0
+          };
+          return [...prevProducts, nuevoProducto];
+        }
+      });
+
+      // Resetear formulario
+      resetForm();
+      setShowForm(false);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error al crear producto:', err);
+
+      if (axios.isAxiosError(err)) {
+        setError(
+          err.response?.data?.error ||
+          err.response?.data?.message ||
+          'Error al crear el producto'
+        );
+      } else {
+        setError('Error inesperado al crear el producto');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
-  } finally {
-    console.groupEnd();
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,8 +280,9 @@ const handleCreateProduct = async (e: React.FormEvent) => {
 
     try {
       setIsSubmitting(true);
-      const token = localStorage.getItem('token');
+      setError(null);
 
+      const token = localStorage.getItem('token');
       if (!token) {
         router.push('/login');
         return;
@@ -387,50 +358,57 @@ const handleCreateProduct = async (e: React.FormEvent) => {
   };
 
   const handleDeleteProduct = async () => {
-      if (!productToDelete) return;
+    if (!productToDelete) return;
 
-      try {
-        const token = localStorage.getItem('token');
-
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-
-        await axios.delete(`/api/products/${productToDelete.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        // Eliminar el producto de la lista
-        setProducts(prevProducts =>
-          prevProducts.filter(p => p.id !== productToDelete.id)
-        );
-        setProductToDelete(null);
-        setShowDeleteModal(false);
-        setError(null);
-      } catch (err: any) {
-        console.error('Error al eliminar producto:', err);
-        setError(err.response?.data?.error || 'Error al eliminar el producto');
-        setShowDeleteModal(false);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        router.push('/login');
+        return;
       }
-    };
 
-    // Abrir editor de opciones para un producto
-    const openOptionsEditor = (productId: number) => {
-      setSelectedProductForOptions(productId);
-      setShowOptionsEditor(true);
-    };
+      await axios.delete(`/api/products/${productToDelete.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    // Cerrar editor de opciones
-    const closeOptionsEditor = () => {
-      setSelectedProductForOptions(null);
-      setShowOptionsEditor(false);
+      // Eliminar el producto de la lista
+      setProducts(prevProducts =>
+        prevProducts.filter(p => p.id !== productToDelete.id)
+      );
+      setProductToDelete(null);
+      setShowDeleteModal(false);
+      setError(null);
+    } catch (err: any) {
+      console.error('Error al eliminar producto:', err);
+      setError(err.response?.data?.error || 'Error al eliminar el producto');
+      setShowDeleteModal(false);
+    }
+  };
 
-      // Recargar productos para reflejar cambios en opciones
-      fetchProductsAndCategories();
-    };
+  // Abrir editor de opciones para un producto
+  const openOptionsEditor = (productId: number) => {
+    setSelectedProductForOptions(productId);
+    setShowOptionsEditor(true);
+  };
 
-// Método de renderizado de carga
+  // Cerrar editor de opciones
+  const closeOptionsEditor = () => {
+    setSelectedProductForOptions(null);
+    setShowOptionsEditor(false);
+    // Recargar productos para reflejar cambios en opciones
+    fetchProductsAndCategories();
+  };
+
+  // Función para formatear precios
+  const formatPrice = (price: number) => {
+    return price.toLocaleString('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).replace('CLP', '$');
+  };
+
+  // Método de renderizado de carga
   if (loading && (!Array.isArray(products) || products.length === 0)) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -510,8 +488,123 @@ const handleCreateProduct = async (e: React.FormEvent) => {
                   </h2>
 
                   <form onSubmit={formMode === 'create' ? handleCreateProduct : handleUpdateProduct}>
-                    {/* Contenido del formulario (campos de entrada, etc.) */}
-                    {/* ... (código de formulario que ya implementamos anteriormente) ... */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Nombre *
+                        </label>
+                        <input
+                          type="text"
+                          value={currentProduct.name}
+                          onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
+                          className="w-full p-2 border rounded-md"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Categoría *
+                        </label>
+                        <select
+                          value={currentProduct.category_id || ''}
+                          onChange={(e) => setCurrentProduct({ ...currentProduct, category_id: Number(e.target.value) })}
+                          className="w-full p-2 border rounded-md"
+                          required
+                        >
+                          <option value="">Seleccionar categoría</option>
+                          {categories.map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Descripción
+                      </label>
+                      <textarea
+                        value={currentProduct.description || ''}
+                        onChange={(e) => setCurrentProduct({ ...currentProduct, description: e.target.value })}
+                        className="w-full p-2 border rounded-md"
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Precio *
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-2 text-gray-500">$</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={currentProduct.price || ''}
+                            onChange={(e) => setCurrentProduct({ ...currentProduct, price: e.target.value ? Number(e.target.value) : 0 })}
+                            className="w-full p-2 pl-7 border rounded-md"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Imagen
+                        </label>
+                        <div className="flex items-center">
+                          {(previewUrl || currentProduct.image_url) && (
+                            <div className="relative h-20 w-20 mr-4 border rounded-md overflow-hidden">
+                              <Image
+                                src={previewUrl || currentProduct.image_url || ''}
+                                alt="Vista previa"
+                                fill
+                                style={{ objectFit: "cover" }}
+                              />
+                            </div>
+                          )}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="flex-1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowForm(false)}
+                        className="px-4 py-2"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            {formMode === 'create' ? 'Creando...' : 'Actualizando...'}
+                          </>
+                        ) : (
+                          formMode === 'create' ? 'Crear Producto' : 'Actualizar Producto'
+                        )}
+                      </Button>
+                    </div>
                   </form>
                 </CardContent>
               </Card>
@@ -569,8 +662,72 @@ const handleCreateProduct = async (e: React.FormEvent) => {
                             exit={{ opacity: 0 }}
                             layout
                           >
-                            {/* Contenido de la fila de producto (imagen, nombre, etc.) */}
-                            {/* ... (código de fila de producto que ya implementamos anteriormente) ... */}
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100">
+                                {product.image_url ? (
+                                  <Image
+                                    src={product.image_url}
+                                    alt={product.name}
+                                    fill
+                                    style={{ objectFit: "cover" }}
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{product.name}</div>
+                              {product.description && (
+                                <div className="text-xs text-gray-500">{product.description.substring(0, 50)}{product.description.length > 50 ? '...' : ''}</div>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {categories.find(c => c.id === product.category_id)?.name || 'Sin categoría'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{formatPrice(product.price)}</div>
+                            </td>
+                            <td className="px-4 py-2 whitespace-nowrap text-sm">
+                              <div className="flex space-x-2">
+                                <Button
+                                  onClick={() => openOptionsEditor(product.id)}
+                                  variant="outline"
+                                  className="text-purple-600 border-purple-600 hover:bg-purple-50 px-2 py-1 text-xs"
+                                >
+                                  Opciones
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setCurrentProduct(product);
+                                    setPreviewUrl(product.image_url || null);
+                                    setFormMode('edit');
+                                    setShowForm(true);
+                                    setSelectedFile(null);
+                                  }}
+                                  variant="outline"
+                                  className="text-blue-600 border-blue-600 hover:bg-blue-50 px-2 py-1 text-xs"
+                                >
+                                  Editar
+                                </Button>
+                                <Button
+                                  onClick={() => {
+                                    setProductToDelete(product);
+                                    setShowDeleteModal(true);
+                                  }}
+                                  variant="outline"
+                                  className="text-red-600 border-red-600 hover:bg-red-50 px-2 py-1 text-xs"
+                                >
+                                  Eliminar
+                                </Button>
+                              </div>
+                            </td>
                           </motion.tr>
                         ))}
                       </AnimatePresence>
@@ -621,6 +778,3 @@ const handleCreateProduct = async (e: React.FormEvent) => {
     </div>
   );
 }
-
-
-

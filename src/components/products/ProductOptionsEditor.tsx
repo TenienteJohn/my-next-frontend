@@ -63,7 +63,7 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
-      const response = await axios.get(`/api/products/${productId}/options`, {
+      const response = await axios.get(`/api/product-options/${productId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
