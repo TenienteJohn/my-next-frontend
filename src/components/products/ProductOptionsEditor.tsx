@@ -99,8 +99,8 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       }
 
       const response = await axios.post(
-        `/api/products/${productId}/options`,
-        newOption,
+        "/api/product-options",
+        { ...newOption, product_id: productId },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -152,10 +152,12 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       }
 
       await axios.put(
-        `/api/options/${editingOption.id}`,
+        `/api/product-options/${editingOption.id}`,
         editingOption,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      await fetchOptions();
 
       // Refrescar la lista de opciones
       await fetchOptions();
