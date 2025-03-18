@@ -188,7 +188,7 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
-      await axios.delete(`/api/options/${optionId}`, {
+      await axios.delete(`/api/product-options/${optionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
