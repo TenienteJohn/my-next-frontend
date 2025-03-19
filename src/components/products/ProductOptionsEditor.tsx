@@ -63,12 +63,15 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
-      const response = await axios.get(`/api/product-options/${productId}`, {
+      // Añadir timestamp para evitar caché
+      const timestamp = new Date().getTime();
+      const response = await axios.get(`/api/product-options/${productId}?_=${timestamp}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('Opciones cargadas del servidor:', response.data);
       setOptions(response.data || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error al cargar opciones:', err);
       setError(err.response?.data?.error || 'Error al cargar las opciones');
     } finally {
@@ -127,6 +130,34 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     }
   };
 
+  // Añade esta función justo después de handleDeleteOption
+  const addItemDirectly = async (optionId, itemData) => {
+    try {
+      // Obtener el token de autenticación
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No se encontró token de autenticación');
+      }
+
+      // Hacer la petición POST para agregar el ítem
+      const response = await axios.post(
+        `/api/product-options/${optionId}/items`,  // URL con el ID de la opción
+        itemData,                                  // Datos del ítem (nombre, precio, etc.)
+        { headers: { Authorization: `Bearer ${token}` } }  // Cabecera de autenticación
+      );
+
+      // Registrar el resultado en la consola
+      console.log('Ítem agregado directamente:', response.data);
+
+      // Devolver la respuesta
+      return response.data;
+    } catch (error) {
+      // Manejar errores
+      console.error('Error al agregar ítem directamente:', error);
+      throw error;
+    }
+  };
+
   const handleUpdateOption = async () => {
     if (!editingOption || !editingOption.id) return;
 
@@ -134,13 +165,12 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       setLoading(true);
       setError(null);
 
-      // Validar que la opción tenga nombre
+      // Validaciones
       if (!editingOption.name.trim()) {
         setError('El nombre de la opción es obligatorio');
         return;
       }
 
-      // Validar que tenga al menos un item
       if (editingOption.items.length === 0) {
         setError('Debe agregar al menos un item a la opción');
         return;
@@ -151,24 +181,68 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
-      await axios.put(
+      // Separar ítems existentes de ítems nuevos
+      const existingItems = editingOption.items.filter(item => item.id);
+      const newItems = editingOption.items.filter(item => !item.id);
+
+      console.log('Ítems existentes:', existingItems);
+      console.log('Ítems nuevos:', newItems);
+
+      // 1. Primero actualizar la opción con los ítems existentes
+      const optionData = {
+        name: editingOption.name,
+        required: editingOption.required,
+        multiple: editingOption.multiple,
+        max_selections: editingOption.max_selections,
+        items: existingItems
+      };
+
+      console.log('1. Actualizando opción con ítems existentes:', optionData);
+
+      const updateResponse = await axios.put(
         `/api/product-options/${editingOption.id}`,
-        editingOption,
+        optionData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      console.log('Opción actualizada:', updateResponse.data);
+
+      // 2. Luego agregar cada ítem nuevo individualmente
+      if (newItems.length > 0) {
+        console.log('2. Agregando ítems nuevos individualmente:', newItems);
+
+        for (const newItem of newItems) {
+          const itemData = {
+            name: newItem.name,
+            price_addition: Number(newItem.price_addition) || 0,
+            available: newItem.available !== false,
+            image_url: newItem.image_url || null
+          };
+
+          console.log(`Agregando ítem: ${newItem.name}`);
+          await addItemDirectly(editingOption.id, itemData);
+        }
+      }
+
+      // 3. Refrescar opciones
+      console.log('3. Refrescando lista de opciones');
       await fetchOptions();
 
-      // Refrescar la lista de opciones
-      await fetchOptions();
-
-      // Reiniciar el formulario de edición
+      // 4. Reiniciar el formulario de edición
       setEditingOption(null);
 
       if (onUpdateComplete) {
         onUpdateComplete();
       }
-    } catch (err: any) {
+
+      // 5. Mostrar mensaje de éxito
+      const successMsg = document.createElement('div');
+      successMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg z-50';
+      successMsg.textContent = 'Opción actualizada correctamente';
+      document.body.appendChild(successMsg);
+      setTimeout(() => document.body.removeChild(successMsg), 3000);
+
+    } catch (err) {
       console.error('Error al actualizar opción:', err);
       setError(err.response?.data?.error || 'Error al actualizar la opción');
     } finally {
@@ -206,6 +280,61 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     }
   };
 
+  const updateItem = async (optionId: number, itemId: number, updatedItem: Partial<OptionItem>) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No se encontró token de autenticación');
+      }
+
+      await axios.put(
+        `/api/product-options/${optionId}/items/${itemId}`,
+        updatedItem,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Refrescar opciones después de la actualización
+      await fetchOptions();
+
+    } catch (err: any) {
+      console.error('Error al actualizar item:', err);
+      setError(err.response?.data?.error || 'Error al actualizar el item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteItem = async (optionId: number, itemId: number) => {
+    if (!confirm('¿Está seguro que desea eliminar este ítem?')) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No se encontró token de autenticación');
+      }
+
+      await axios.delete(
+        `/api/product-options/${optionId}/items/${itemId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Refrescar opciones después de la eliminación
+      await fetchOptions();
+
+    } catch (err: any) {
+      console.error('Error al eliminar item:', err);
+      setError(err.response?.data?.error || 'Error al eliminar el item');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const addItemToNewOption = () => {
     // Validar que el item tenga nombre
     if (!newItem.name.trim()) {
@@ -236,11 +365,25 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       return;
     }
 
-    // Agregar item a la opción que se está editando
+    // Limpiar cualquier error previo
+    setError(null);
+
+    // Crear el objeto de ítem con la estructura correcta
+    const itemToAdd = {
+      // Sin ID para que el backend lo identifique como nuevo
+      name: newItem.name.trim(),
+      price_addition: Number(newItem.price_addition) || 0,
+      available: newItem.available !== false,
+      image_url: newItem.image_url || null
+    };
+
+    // Actualizar el estado de editingOption
     setEditingOption({
       ...editingOption,
-      items: [...editingOption.items, { ...newItem }]
+      items: [...editingOption.items, itemToAdd]
     });
+
+    console.log(`Ítem "${newItem.name}" agregado a la opción "${editingOption.name}"`);
 
     // Reiniciar el formulario de item
     setNewItem({
@@ -256,12 +399,19 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     setNewOption({ ...newOption, items: updatedItems });
   };
 
-  const removeItemFromEditingOption = (index: number) => {
+  const updateItemInEditingOption = (itemIndex: number, updatedFields: Partial<OptionItem>) => {
     if (!editingOption) return;
 
     const updatedItems = [...editingOption.items];
-    updatedItems.splice(index, 1);
-    setEditingOption({ ...editingOption, items: updatedItems });
+    updatedItems[itemIndex] = {
+      ...updatedItems[itemIndex],
+      ...updatedFields
+    };
+
+    setEditingOption({
+      ...editingOption,
+      items: updatedItems
+    });
   };
 
   if (loading && options.length === 0) {
@@ -557,15 +707,26 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                                   (+${item.price_addition.toFixed(2)})
                                 </span>
                               )}
+                              <button
+                                onClick={() => {
+                                  const newAvailability = !item.available;
+                                  updateItemInEditingOption(index, { available: newAvailability });
+                                }}
+                                className={`ml-3 px-2 py-1 text-xs rounded ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+                              >
+                                {item.available ? 'Disponible' : 'No disponible'}
+                              </button>
                             </div>
-                            <button
-                              onClick={() => removeItemFromEditingOption(index)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
+                            <div className="flex space-x-2">
+                              <button
+                                onClick={() => removeItemFromEditingOption(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -642,9 +803,19 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                             </span>
                           )}
                         </div>
-                        {!item.available && (
-                          <span className="text-amber-600 text-sm">No disponible</span>
-                        )}
+                        <div className="flex items-center">
+                          {!item.available && (
+                            <span className="text-amber-600 text-sm mr-3">No disponible</span>
+                          )}
+                          <button
+                            onClick={() => item.id && option.id && deleteItem(option.id, item.id)}
+                            className="text-red-500 hover:text-red-700 ml-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>
@@ -661,3 +832,33 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     </div>
   );
 }
+    const handleUpdateItem = async (optionId: number, item: OptionItem) => {
+        if (!item.id) return;
+
+        try {
+            setLoading(true);
+            setError(null);
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                throw new Error('No se encontró token de autenticación');
+            }
+
+            await axios.put(
+                `/api/product-options/${optionId}/items/${item.id}`,
+                item,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            await fetchOptions();
+            setEditingItem(null);
+            if (onUpdateComplete) {
+                onUpdateComplete();
+            }
+        } catch (err: any) {
+            console.error('Error al actualizar item:', err);
+            setError(err.response?.data?.error || 'Error al actualizar el item');
+        } finally {
+            setLoading(false);
+        }
+    };
