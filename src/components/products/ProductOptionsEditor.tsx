@@ -806,24 +806,24 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                                 </span>
                               )}
                               <button
-                                                              onClick={() => {
-                                                                const newAvailability = !item.available;
-                                                                updateItemInEditingOption(index, { available: newAvailability });
-                                                              }}
-                                                              className={`ml-3 px-2 py-1 text-xs rounded flex items-center ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
-                                                            >
-                                                              {item.available ? (
-                                                                <>
-                                                                  <Check size={14} className="mr-1" />
-                                                                  Disponible
-                                                                </>
-                                                              ) : (
-                                                                <>
-                                                                  <X size={14} className="mr-1" />
-                                                                  No disponible
-                                                                </>
-                                                              )}
-                                                            </button>
+                                 onClick={() => {
+                                 const newAvailability = !item.available;
+                                 updateItemInEditingOption(index, { available: newAvailability });
+                                 }}
+                                 className={`ml-3 px-2 py-1 text-xs rounded flex items-center ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+                              >
+                                 {item.available ? (
+                              <>
+                                 <Check size={14} className="mr-1" />
+                                   Disponible
+                                      </>
+                                 ) : (
+                              <>
+                                    <X size={14} className="mr-1" />
+                                    No disponible
+                                       </>
+                                    )}
+                              </button>
                             </div>
                             <div className="flex space-x-2">
                               <button
@@ -988,3 +988,4 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
           )}
     </div>
   );
+}
