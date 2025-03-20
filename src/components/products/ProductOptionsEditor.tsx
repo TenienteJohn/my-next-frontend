@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ChevronDown, ChevronUp, Plus, X, Trash2, Edit, Check } from 'lucide-react';
 
 interface OptionItem {
   id?: number;
@@ -34,6 +35,7 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingOption, setEditingOption] = useState<ProductOption | null>(null);
+  const [expandedOptions, setExpandedOptions] = useState<{[key: number]: boolean}>({});
   const [newOption, setNewOption] = useState<ProductOption>({
     name: '',
     required: false,
@@ -52,6 +54,15 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       fetchOptions();
     }
   }, [productId]);
+
+  // Inicializar el estado de expansión al cargar opciones
+  useEffect(() => {
+    const initialExpandedState = {};
+    options.forEach(option => {
+      initialExpandedState[option.id] = false;
+    });
+    setExpandedOptions(initialExpandedState);
+  }, [options]);
 
   const fetchOptions = async () => {
     try {
@@ -122,6 +133,9 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       if (onUpdateComplete) {
         onUpdateComplete();
       }
+
+      showSuccessMessage('Opción agregada correctamente');
+
     } catch (err: any) {
       console.error('Error al agregar opción:', err);
       setError(err.response?.data?.error || 'Error al agregar la opción');
@@ -272,6 +286,9 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       if (onUpdateComplete) {
         onUpdateComplete();
       }
+
+      showSuccessMessage('Opción eliminada correctamente');
+
     } catch (err: any) {
       console.error('Error al eliminar opción:', err);
       setError(err.response?.data?.error || 'Error al eliminar la opción');
@@ -334,6 +351,13 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       setLoading(false);
     }
   };
+
+  const toggleExpandOption = (optionId) => {
+      setExpandedOptions(prev => ({
+        ...prev,
+        [optionId]: !prev[optionId]
+      }));
+    };
 
   const addItemToNewOption = () => {
     // Validar que el item tenga nombre
@@ -399,6 +423,14 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     setNewOption({ ...newOption, items: updatedItems });
   };
 
+  const removeItemFromEditingOption = (index) => {
+      if (!editingOption) return;
+
+      const updatedItems = [...editingOption.items];
+      updatedItems.splice(index, 1);
+      setEditingOption({ ...editingOption, items: updatedItems });
+    };
+
   const updateItemInEditingOption = (itemIndex: number, updatedFields: Partial<OptionItem>) => {
     if (!editingOption) return;
 
@@ -415,17 +447,43 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
   };
 
   if (loading && options.length === 0) {
-    return <div className="text-center py-4">Cargando opciones...</div>;
-  }
+      return (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+          <p className="text-gray-600">Cargando opciones...</p>
+        </div>
+      );
+    }
+
+  const showSuccessMessage = (message) => {
+      const successMsg = document.createElement('div');
+      successMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg z-50 flex items-center';
+
+      const checkIcon = document.createElement('span');
+      checkIcon.className = 'mr-2';
+      checkIcon.innerHTML = '✓';
+      successMsg.appendChild(checkIcon);
+
+      const textNode = document.createTextNode(message);
+      successMsg.appendChild(textNode);
+
+      document.body.appendChild(successMsg);
+
+      setTimeout(() => {
+        successMsg.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+        setTimeout(() => document.body.removeChild(successMsg), 500);
+      }, 2500);
+    };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h3 className="text-xl font-semibold">Opciones del Producto</h3>
+        <h3 className="text-xl font-bold text-gray-900">Opciones del Producto</h3>
         <Button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-blue-500 hover:bg-blue-600 text-white"
+          className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
         >
+          {showAddForm ? <X size={18} /> : <Plus size={18} />}
           {showAddForm ? 'Cancelar' : 'Agregar Opción'}
         </Button>
       </div>
@@ -445,30 +503,30 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <Card>
+            <Card className="border-2 border-blue-200">
               <CardContent className="pt-6">
-                <h4 className="font-medium mb-4">Nueva Opción</h4>
+                <h4 className="font-medium mb-4 text-lg text-blue-600">Nueva Opción</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Nombre *
                     </label>
                     <input
-                      type="text"
-                      value={newOption.name}
-                      onChange={(e) => setNewOption({ ...newOption, name: e.target.value })}
-                      className="w-full p-2 border rounded"
-                      placeholder="Ej: Tamaño, Sabor, etc."
-                    />
+                                          type="text"
+                                          value={newOption.name}
+                                          onChange={(e) => setNewOption({ ...newOption, name: e.target.value })}
+                                          className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                          placeholder="Ej: Tamaño, Sabor, etc."
+                                        />
                   </div>
                   <div className="flex items-center space-x-4">
                     <label className="flex items-center">
                       <input
-                        type="checkbox"
-                        checked={newOption.required}
-                        onChange={(e) => setNewOption({ ...newOption, required: e.target.checked })}
-                        className="mr-2"
-                      />
+                                              type="checkbox"
+                                              checked={newOption.required}
+                                              onChange={(e) => setNewOption({ ...newOption, required: e.target.checked })}
+                                              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                                            />
                       <span className="text-sm">Obligatorio</span>
                     </label>
                     <label className="flex items-center">
@@ -530,10 +588,11 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                   </div>
                   <div className="flex items-end">
                     <Button
-                      onClick={addItemToNewOption}
-                      className="bg-green-500 hover:bg-green-600 text-white"
+                                          onClick={addItemToNewOption}
+                                          className="bg-green-500 hover:bg-green-600 text-white flex items-center"
                     >
-                      Agregar Item
+                                          <Plus size={18} className="mr-1" />
+                                          Agregar Item
                     </Button>
                   </div>
                 </div>
@@ -542,10 +601,10 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                 {newOption.items.length > 0 && (
                   <div className="mt-4 mb-6">
                     <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
-                    <div className="bg-gray-50 p-2 rounded">
+                    <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
                       <ul className="divide-y divide-gray-200">
                         {newOption.items.map((item, index) => (
-                          <li key={index} className="py-2 flex justify-between items-center">
+                          <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
                             <div>
                               <span className="font-medium">{item.name}</span>
                               {item.price_addition > 0 && (
@@ -558,9 +617,7 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                               onClick={() => removeItemFromNewOption(index)}
                               className="text-red-500 hover:text-red-700"
                             >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
+                              <Trash2 size={18} />
                             </button>
                           </li>
                         ))}
@@ -577,12 +634,22 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                     Cancelar
                   </Button>
                   <Button
-                    onClick={handleAddOption}
-                    className="bg-blue-500 hover:bg-blue-600 text-white"
-                    disabled={loading || !newOption.name || newOption.items.length === 0}
-                  >
-                    {loading ? 'Guardando...' : 'Guardar Opción'}
-                  </Button>
+                                      onClick={handleAddOption}
+                                      className="bg-blue-500 hover:bg-blue-600 text-white flex items-center"
+                                      disabled={loading || !newOption.name || newOption.items.length === 0}
+                                    >
+                                      {loading ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                                          Guardando...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Check size={18} className="mr-1" />
+                                          Guardar Opción
+                                        </>
+                                      )}
+                                    </Button>
                 </div>
               </CardContent>
             </Card>
@@ -599,9 +666,9 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <Card>
-              <CardContent className="pt-6">
-                <h4 className="font-medium mb-4">Editar Opción</h4>
+            <Card className="border-2 border-emerald-200">
+                          <CardContent className="pt-6">
+                            <h4 className="font-medium mb-4 text-lg text-emerald-600">Editar Opción</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -696,10 +763,10 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                 {editingOption.items.length > 0 && (
                   <div className="mt-4 mb-6">
                     <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
-                    <div className="bg-gray-50 p-2 rounded">
+                    <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
                       <ul className="divide-y divide-gray-200">
                         {editingOption.items.map((item, index) => (
-                          <li key={index} className="py-2 flex justify-between items-center">
+                          <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
                             <div>
                               <span className="font-medium">{item.name}</span>
                               {item.price_addition > 0 && (
@@ -708,14 +775,24 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                                 </span>
                               )}
                               <button
-                                onClick={() => {
-                                  const newAvailability = !item.available;
-                                  updateItemInEditingOption(index, { available: newAvailability });
-                                }}
-                                className={`ml-3 px-2 py-1 text-xs rounded ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
-                              >
-                                {item.available ? 'Disponible' : 'No disponible'}
-                              </button>
+                                                              onClick={() => {
+                                                                const newAvailability = !item.available;
+                                                                updateItemInEditingOption(index, { available: newAvailability });
+                                                              }}
+                                                              className={`ml-3 px-2 py-1 text-xs rounded flex items-center ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+                                                            >
+                                                              {item.available ? (
+                                                                <>
+                                                                  <Check size={14} className="mr-1" />
+                                                                  Disponible
+                                                                </>
+                                                              ) : (
+                                                                <>
+                                                                  <X size={14} className="mr-1" />
+                                                                  No disponible
+                                                                </>
+                                                              )}
+                                                            </button>
                             </div>
                             <div className="flex space-x-2">
                               <button
@@ -755,83 +832,132 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         )}
       </AnimatePresence>
 
-      {/* Lista de opciones existentes */}
-      {options.length > 0 ? (
-        <div className="space-y-4">
-          {options.map((option) => (
-            <Card key={option.id} className="border-gray-200">
-              <CardContent className="p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h5 className="font-medium">{option.name}</h5>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {option.required && <span className="inline-block mr-3">Obligatorio</span>}
-                      {option.multiple && <span className="inline-block mr-3">Selección múltiple</span>}
-                      {option.multiple && option.max_selections &&
-                        <span className="inline-block">Max: {option.max_selections}</span>}
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={() => setEditingOption(option)}
-                      variant="outline"
-                      className="text-blue-500 border-blue-500"
-                    >
-                      Editar
-                    </Button>
-                    <Button
-                      onClick={() => option.id && handleDeleteOption(option.id)}
-                      variant="outline"
-                      className="text-red-500 border-red-500"
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Lista de items de la opción */}
-                <div className="bg-gray-50 p-2 rounded">
-                  <h6 className="text-sm font-medium mb-1">Items:</h6>
-                  <ul className="divide-y divide-gray-200">
-                    {option.items.map((item) => (
-                      <li key={item.id} className="py-2 flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">{item.name}</span>
-                          {item.price_addition > 0 && (
-                            <span className="ml-2 text-gray-600">
-                              (+${item.price_addition.toFixed(2)})
+    {/* Lista de opciones existentes */}
+          {options.length > 0 ? (
+            <div className="space-y-4">
+              {options.map((option) => (
+                <Card key={option.id} className="border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                  <div
+                    className="p-4 cursor-pointer"
+                    onClick={() => toggleExpandOption(option.id)}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="flex items-center">
+                          <h5 className="font-medium text-lg">{option.name}</h5>
+                          {option.required && (
+                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              Obligatorio
+                            </span>
+                          )}
+                          {option.multiple && (
+                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
+                              Múltiple
+                            </span>
+                          )}
+                          {option.multiple && option.max_selections && (
+                            <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
+                              Máx: {option.max_selections}
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center">
-                          {!item.available && (
-                            <span className="text-amber-600 text-sm mr-3">No disponible</span>
-                          )}
-                          <button
-                            onClick={() => item.id && option.id && deleteItem(option.id, item.id)}
-                            className="text-red-500 hover:text-red-700 ml-2"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
+                        <div className="text-sm text-gray-500 mt-1">
+                          {option.items?.length || 0} {option.items?.length === 1 ? 'ítem' : 'ítems'}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-6 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No hay opciones configuradas para este producto.</p>
-        </div>
-      )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {expandedOptions[option.id] ?
+                          <ChevronUp size={24} className="text-gray-500" /> :
+                          <ChevronDown size={24} className="text-gray-500" />
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contenido expandible con los items */}
+                  {expandedOptions[option.id] && (
+                    <div className="border-t border-gray-200">
+                      <div className="p-4">
+                        <div className="mb-4 flex justify-between">
+                          <h6 className="font-medium text-gray-700">Ítems disponibles:</h6>
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Evitar que se propague al hacer clic
+                                setEditingOption(option);
+                              }}
+                              variant="outline"
+                              className="text-blue-500 border-blue-500 hover:bg-blue-50"
+                              size="sm"
+                            >
+                              <Edit size={16} className="mr-1" />
+                              Editar
+                            </Button>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation(); // Evitar que se propague al hacer clic
+                                option.id && handleDeleteOption(option.id);
+                              }}
+                              variant="outline"
+                              className="text-red-500 border-red-500 hover:bg-red-50"
+                              size="sm"
+                            >
+                              <Trash2 size={16} className="mr-1" />
+                              Eliminar
+                            </Button>
+                          </div>
+                        </div>
+
+                        {option.items && option.items.length > 0 ? (
+                          <div className="bg-gray-50 p-3 rounded-lg">
+                            <ul className="divide-y divide-gray-200">
+                              {option.items.map((item) => (
+                                <li key={item.id} className="py-2 flex justify-between items-center">
+                                  <div className="flex items-center">
+                                    <span className="font-medium">{item.name}</span>
+                                    {item.price_addition > 0 && (
+                                      <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                                        +${item.price_addition.toFixed(2)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center">
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                      {item.available ? 'Disponible' : 'No disponible'}
+                                    </span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation(); // Evitar que se propague al hacer clic
+                                        item.id && option.id && deleteItem(option.id, item.id);
+                                      }}
+                                      className="text-red-500 hover:text-red-700 ml-2"
+                                    >
+                                      <Trash2 size={18} />
+                                    </button>
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : (
+                          <div className="text-center py-4 bg-gray-50 rounded-lg">
+                            <p className="text-gray-500">No hay ítems en esta opción.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-gray-50 rounded-lg">
+              <p className="text-gray-500">No hay opciones configuradas para este producto.</p>
+            </div>
+          )}
     </div>
   );
-}
+
     const handleUpdateItem = async (optionId: number, item: OptionItem) => {
         if (!item.id) return;
 
