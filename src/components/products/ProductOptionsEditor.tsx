@@ -446,6 +446,37 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     });
   };
 
+  const handleUpdateItem = async (optionId: number, item: OptionItem) => {
+              if (!item.id) return;
+
+              try {
+                  setLoading(true);
+                  setError(null);
+
+                  const token = localStorage.getItem('token');
+                  if (!token) {
+                      throw new Error('No se encontró token de autenticación');
+                  }
+
+                  await axios.put(
+                      `/api/product-options/${optionId}/items/${item.id}`,
+                      item,
+                      { headers: { Authorization: `Bearer ${token}` } }
+                  );
+
+                  await fetchOptions();
+                  setEditingItem(null);
+                  if (onUpdateComplete) {
+                      onUpdateComplete();
+                  }
+              } catch (err: any) {
+                  console.error('Error al actualizar item:', err);
+                  setError(err.response?.data?.error || 'Error al actualizar el item');
+              } finally {
+                  setLoading(false);
+              }
+          };
+
   if (loading && options.length === 0) {
       return (
         <div className="text-center py-8">
@@ -957,34 +988,3 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
           )}
     </div>
   );
-
-    const handleUpdateItem = async (optionId: number, item: OptionItem) => {
-        if (!item.id) return;
-
-        try {
-            setLoading(true);
-            setError(null);
-
-            const token = localStorage.getItem('token');
-            if (!token) {
-                throw new Error('No se encontró token de autenticación');
-            }
-
-            await axios.put(
-                `/api/product-options/${optionId}/items/${item.id}`,
-                item,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            await fetchOptions();
-            setEditingItem(null);
-            if (onUpdateComplete) {
-                onUpdateComplete();
-            }
-        } catch (err: any) {
-            console.error('Error al actualizar item:', err);
-            setError(err.response?.data?.error || 'Error al actualizar el item');
-        } finally {
-            setLoading(false);
-        }
-    };
