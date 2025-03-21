@@ -68,19 +68,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      // Bloquear scroll del fondo
       document.body.style.overflow = 'hidden';
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
     } else {
-      // Restaurar scroll al cerrar
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
     }
 
     return () => {
-      // Asegurar limpieza si el componente se desmonta
       document.body.style.overflow = '';
       document.body.style.position = '';
       document.body.style.width = '';
@@ -169,11 +166,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setValidationError(null);
       setScrollPosition(0);
       setIsHeaderCompact(false);
-      //setCanSwipeDown(true);
-      //setIsDragging(false);
 
-      // Resetear posición y
-      //y.set(0);
 
       // Inicializar opciones
       if (product.options) {
