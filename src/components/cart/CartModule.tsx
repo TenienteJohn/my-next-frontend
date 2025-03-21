@@ -49,7 +49,7 @@ interface CartModuleProps {
   onAddToCart: (product: Product, quantity: number) => void;
 }
 
-// Función para bloquear el scroll en iOS
+// Función para bloquear el scroll en iOS - VERSIÓN CORREGIDA
 const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivElement>) => {
   // Detectamos iOS
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -66,19 +66,24 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
           width: 100%;
           height: 100%;
           overflow: hidden;
-          overscroll-behavior: none;
-          touch-action: none;
-          -webkit-overflow-scrolling: none;
         }
 
-        .modal-ios-scroll {
-          -webkit-overflow-scrolling: touch;
+        .modal-content-scroll {
+          -webkit-overflow-scrolling: touch !important;
           overscroll-behavior: contain;
-          overflow-y: auto;
+          overflow-y: auto !important;
           overflow-x: hidden;
-          height: 100%;
+          height: auto;
           max-height: 90vh;
-          touch-action: pan-y;
+          touch-action: pan-y !important;
+        }
+
+        /* Evitar que los innerScrollables tengan problemas */
+        .inner-scrollable {
+          -webkit-overflow-scrolling: touch !important;
+          overflow-y: auto !important;
+          touch-action: pan-y !important;
+          overscroll-behavior: contain;
         }
       `;
       document.head.appendChild(styleEl);
@@ -96,8 +101,8 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
     document.body.classList.add('body-scroll-lock');
 
     // Aplicar estilos específicos al modal para iOS
-    if (isIOS && modalRef.current) {
-      modalRef.current.classList.add('modal-ios-scroll');
+    if (modalRef.current) {
+      modalRef.current.classList.add('modal-content-scroll');
     }
 
     return () => {
@@ -109,62 +114,37 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
       window.scrollTo(0, scrollY.current);
 
       // Limpiar clases
-      if (isIOS && modalRef.current) {
-        modalRef.current.classList.remove('modal-ios-scroll');
+      if (modalRef.current) {
+        modalRef.current.classList.remove('modal-content-scroll');
       }
     };
-  }, [isOpen, isIOS, modalRef]);
+  }, [isOpen, modalRef]);
 
-  // Prevenir el "bounce" en iOS directamente
+  // Método mejorado para gestionar touchmove
   useEffect(() => {
-    if (!isOpen || !isIOS) return;
+    if (!isOpen) return;
 
-    // Función para prevenir eventos de touchmove globales
+    // Función para manejar touchmove - VERSIÓN CORREGIDA
     const preventTouchMove = (e: TouchEvent) => {
-      // Permitir scroll dentro del modal, pero prevenir en el resto
       const target = e.target as Node;
       const modalContent = modalRef.current;
 
+      // Si el target está dentro del modal, permitimos el scroll normal
       if (modalContent && modalContent.contains(target)) {
-        // Verificar si estamos en el límite del scroll
-        const scrollableElement = findScrollableParent(target as HTMLElement);
-
-        if (scrollableElement && scrollableElement !== document.body) {
-          const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
-          // Si estamos en la parte superior e intentamos hacer scroll hacia arriba,
-          // o en la parte inferior y hacia abajo, prevenimos
-          if ((scrollTop <= 0 && e.touches[0].clientY > 0) ||
-              (scrollTop + clientHeight >= scrollHeight - 1 && e.touches[0].clientY < 0)) {
-            e.preventDefault();
-          }
-          return; // Permitir scroll interno
-        }
+        return; // Permitir scroll dentro del modal
       }
 
-      // Para cualquier otro caso, prevenir
+      // Solo prevenir los eventos fuera del modal
       e.preventDefault();
     };
 
-    // Encontrar el elemento padre con scroll
-    const findScrollableParent = (element: HTMLElement | null): HTMLElement | null => {
-      if (!element) return null;
-
-      const style = window.getComputedStyle(element);
-      const overflowY = style.getPropertyValue('overflow-y');
-      const isScrollable = overflowY !== 'visible' && overflowY !== 'hidden';
-
-      if (isScrollable && element.scrollHeight > element.clientHeight) {
-        return element;
-      }
-
-      return element.parentElement ? findScrollableParent(element.parentElement) : null;
-    };
-
-    document.addEventListener('touchmove', preventTouchMove, { passive: false });
-
-    return () => {
-      document.removeEventListener('touchmove', preventTouchMove);
-    };
+    // Solo añadir el listener si es iOS
+    if (isIOS) {
+      document.addEventListener('touchmove', preventTouchMove, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', preventTouchMove);
+      };
+    }
   }, [isOpen, isIOS, modalRef]);
 };
 
@@ -191,13 +171,15 @@ export const CartModule: React.FC<CartModuleProps> = ({
   // Activar el bloqueo de scroll
   useBodyScrollLock(isOpen, modalRef);
 
-  // Manejar swipe hacia abajo para cerrar
+  // Manejar swipe hacia abajo para cerrar - VERSIÓN MEJORADA
   useEffect(() => {
     if (!isOpen || !swipeHandleRef.current) return;
 
     const swipeHandle = swipeHandleRef.current;
 
     const handleTouchStart = (e: TouchEvent) => {
+      // Para el área de swipe, prevenir el comportamiento por defecto
+      e.preventDefault();
       startY.current = e.touches[0].clientY;
       isDragging.current = true;
     };
@@ -205,7 +187,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDragging.current) return;
 
-      // Prevenir comportamiento por defecto para evitar el "bounce" en iOS
+      // Solo para el área de swipe handle, prevenir comportamiento por defecto
       e.preventDefault();
 
       currentY.current = e.touches[0].clientY;
@@ -253,7 +235,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
       isDragging.current = false;
     };
 
-    // Asignar eventos al handler de swipe
+    // Asignar eventos SOLO al swipe handle (no al modal completo)
     swipeHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
     swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
     swipeHandle.addEventListener('touchend', handleTouchEnd, { passive: true });
@@ -471,9 +453,11 @@ export const CartModule: React.FC<CartModuleProps> = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-ios-scroll"
+            className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-content-scroll"
             onClick={e => e.stopPropagation()}
             style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain',
               transform: dragDistance > 0 ? `translateY(${dragDistance}px)` : 'translateY(0)',
               transition: dragDistance === 0 ? 'transform 0.3s ease-out' : 'none'
             }}
@@ -481,12 +465,15 @@ export const CartModule: React.FC<CartModuleProps> = ({
             {/* Área para swipe hacia abajo */}
             <div
               ref={swipeHandleRef}
-              className="absolute top-0 left-0 w-full h-16 z-30 cursor-grab"
-              style={{ touchAction: 'none' }}
+              className="absolute top-0 left-0 w-full h-16 z-30"
+              style={{
+                cursor: 'grab',
+                touchAction: 'none'
+              }}
             >
               {/* Indicador visual de swipe */}
-              <div className="w-full flex justify-center pt-2">
-                <div className="w-10 h-1 bg-gray-300 rounded-full"></div>
+              <div className="w-full flex justify-center pt-3">
+                <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
               </div>
             </div>
 
@@ -591,7 +578,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
                       </div>
 
                       {expandedOptions[option.id] && (
-                        <div className="px-4 pb-4">
+                        <div className="px-4 pb-4 inner-scrollable">
                           {option.items.map((item) => {
                             // Verificar si este item está seleccionado
                             const isSelected = selectedOptions.some(opt =>
@@ -831,8 +818,12 @@ export const CartView: React.FC<{
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-ios-scroll"
+            className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-content-scroll"
             onClick={e => e.stopPropagation()}
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehavior: 'contain'
+            }}
           >
             {/* Encabezado */}
             <div className="sticky top-0 bg-white p-4 border-b z-10">
@@ -851,7 +842,7 @@ export const CartView: React.FC<{
             </div>
 
             {/* Lista de productos */}
-            <div className="p-4">
+            <div className="p-4 inner-scrollable">
               {items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
