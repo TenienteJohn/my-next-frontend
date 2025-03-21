@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Share, Bookmark, ChevronDown, ChevronUp, Plus, Minus, Trash2, Heart } from 'lucide-react';
+import { X, Share, ChevronDown, Plus, Minus, Trash2, Heart } from 'lucide-react';
 
 // Interfaces para opciones de producto
 interface OptionItem {
@@ -61,11 +61,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [dragDistance, setDragDistance] = useState(0);
+
   const modalRef = useRef<HTMLDivElement>(null);
+  const swipeHandleRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
-  const [isClosing, setIsClosing] = useState(false);
+  const isDragging = useRef(false);
 
+  // Bloquear scroll en body cuando el modal está abierto
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -84,95 +89,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     };
   }, [isOpen]);
 
-  // Efecto para implementar swipe-to-dismiss
-  useEffect(() => {
-    // Solo ejecutar si el modal está abierto y existe la referencia
-    if (!isOpen || !modalRef.current) return;
-
-    // Obtener una referencia al elemento del modal
-    const modal = modalRef.current;
-
-    // Variables para detectar el swipe
-    let startY = 0; // Donde comienza el toque
-    let currentY = 0; // Posición actual del toque
-    let isDragging = false; // ¿Estamos arrastrando?
-
-    // Función que maneja el inicio del toque
-    const handleTouchStart = (e) => {
-      // Guardar la posición inicial del toque
-      startY = e.touches[0].clientY;
-      // Activar el modo de arrastre
-      isDragging = true;
-    };
-
-    // Función que maneja el movimiento del dedo
-    const handleTouchMove = (e) => {
-      // Si no estamos en modo arrastre, no hacer nada
-      if (!isDragging) return;
-
-      // Obtener la posición actual del dedo
-      currentY = e.touches[0].clientY;
-      // Calcular cuánto se ha movido desde el inicio
-      const diff = currentY - startY;
-
-      // Solo permitir arrastrar hacia abajo (diff > 0)
-      if (diff > 0) {
-        // Aplicar transformación visual con algo de resistencia
-        modal.style.transform = `translateY(${diff}px)`;
-        modal.style.transition = 'none';
-
-        // Mostrar u ocultar el indicador visual
-        if (diff > 80) {
-          setIsClosing(true);
-        } else {
-          setIsClosing(false);
-        }
-      }
-    };
-
-    // Función que maneja cuando se levanta el dedo
-    const handleTouchEnd = () => {
-      // Si no estamos en modo arrastre, no hacer nada
-      if (!isDragging) return;
-
-      // Calcular la distancia total recorrida
-      const diff = currentY - startY;
-
-      // Si el arrastre fue suficiente, cerrar el modal
-      if (diff > 100) {
-        // Animar el modal fuera de la pantalla
-        modal.style.transform = `translateY(${window.innerHeight}px)`;
-        modal.style.transition = 'transform 0.3s ease-out';
-
-        // Esperar a que termine la animación antes de cerrar realmente
-        setTimeout(() => {
-          onClose();
-        }, 300);
-      } else {
-        // Si no fue suficiente, volver a la posición original
-        modal.style.transform = 'translateY(0)';
-        modal.style.transition = 'transform 0.3s ease-out';
-      }
-
-      // Resetear el modo de arrastre
-      isDragging = false;
-      setIsClosing(false);
-    };
-
-    // Registrar los eventos en el modal
-    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
-    modal.addEventListener('touchmove', handleTouchMove, { passive: true });
-    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-    // Limpiar los eventos cuando el componente se desmonte
-    return () => {
-      modal.removeEventListener('touchstart', handleTouchStart);
-      modal.removeEventListener('touchmove', handleTouchMove);
-      modal.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [isOpen, onClose]);
-
-
   // Restablecer estados cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
@@ -181,7 +97,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setValidationError(null);
       setScrollPosition(0);
       setIsHeaderCompact(false);
-
+      setDragDistance(0);
 
       // Inicializar opciones
       if (product.options) {
@@ -203,7 +119,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   }, [isOpen, product.id, product.options]);
 
-  // Detectar scroll para cambiar header y estado de swipe
+  // Detectar scroll para cambiar header
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
 
@@ -212,7 +128,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         const position = modalRef.current.scrollTop;
         setScrollPosition(position);
         setIsHeaderCompact(position > 120);
-
       }
     };
 
@@ -222,6 +137,80 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       modalElement.removeEventListener('scroll', handleScroll);
     };
   }, [isOpen]);
+
+  // Manejar eventos touch para el swipe
+  useEffect(() => {
+    // Evitamos ejecutar si el modal no está abierto
+    if (!isOpen || !swipeHandleRef.current) return;
+
+    const swipeHandle = swipeHandleRef.current;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      startY.current = e.touches[0].clientY;
+      isDragging.current = true;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current) return;
+
+      currentY.current = e.touches[0].clientY;
+      const diff = currentY.current - startY.current;
+
+      // Solo permitir arrastrar hacia abajo
+      if (diff > 0) {
+        // Aplicar resistencia progresiva (se vuelve más difícil arrastrar a medida que se aleja)
+        const resistance = 0.6;
+        const transformY = Math.pow(diff, resistance);
+
+        setDragDistance(transformY);
+
+        // Mostrar indicador visual cuando se arrastra lo suficiente
+        setIsClosing(diff > 80);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDragging.current) return;
+
+      const diff = currentY.current - startY.current;
+
+      // Si se ha arrastrado lo suficiente, cerrar el modal
+      if (diff > 100) {
+        // Animar hacia abajo
+        setDragDistance(window.innerHeight);
+
+        // Cerrar después de la animación
+        setTimeout(() => {
+          onClose();
+        }, 300);
+      } else {
+        // Volver a la posición original con animación
+        setDragDistance(0);
+        setIsClosing(false);
+      }
+
+      isDragging.current = false;
+    };
+
+    const handleTouchCancel = () => {
+      setDragDistance(0);
+      setIsClosing(false);
+      isDragging.current = false;
+    };
+
+    // Asignar eventos específicamente al handler de swipe
+    swipeHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
+    swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: true });
+    swipeHandle.addEventListener('touchend', handleTouchEnd, { passive: true });
+    swipeHandle.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+    return () => {
+      swipeHandle.removeEventListener('touchstart', handleTouchStart);
+      swipeHandle.removeEventListener('touchmove', handleTouchMove);
+      swipeHandle.removeEventListener('touchend', handleTouchEnd);
+      swipeHandle.removeEventListener('touchcancel', handleTouchCancel);
+    };
+  }, [isOpen, onClose]);
 
   // No renderizamos nada si no está abierto
   if (!isOpen) return null;
@@ -463,8 +452,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     );
   };
 
-
-
   return (
     <AnimatePresence>
       {isOpen && (
@@ -474,7 +461,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 backdrop-blur-sm"
           onClick={onClose}
-          //style={{ opacity }}
         >
           <motion.div
             ref={modalRef}
@@ -482,29 +468,25 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: 'spring', damping: 40, stiffness: 400 }}
-            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto scrollbar-hide"
+            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto scrollbar-hide relative"
             onClick={e => e.stopPropagation()}
             style={{
               boxShadow: '0px -4px 20px rgba(0, 0, 0, 0.1)',
               overscrollBehavior: 'contain',
-              //y,
-              //scale,
-              //touchAction: 'pan-x' // Mejora el manejo táctil
+              transform: dragDistance > 0 ? `translateY(${dragDistance}px)` : 'translateY(0)',
+              transition: dragDistance === 0 ? 'transform 0.3s ease-out' : 'none'
             }}
-            //drag="y" // Simplificamos usando siempre drag vertical
-            //dragConstraints={{ top: 0, bottom: 0 }}
-            //dragElastic={0.2}
-            //onDragStart={() => {
-              //console.log("Drag start");
-              //setIsDragging(true);
-            //}}
-            //onDragEnd={handleDragEnd}
-            //dragDirectionLock
-            //dragMomentum={false}
           >
-            {/* Indicador de swipe */}
-            <div className="w-full flex justify-center pt-2 pb-1">
-              <div className="w-14 h-1.5 bg-gray-400 rounded-full"></div>
+            {/* Área dedicada para el swipe (70px de altura) */}
+            <div
+              ref={swipeHandleRef}
+              className="absolute top-0 left-0 w-full h-16 z-40"
+              style={{ cursor: 'grab' }}
+            >
+              {/* Indicador de swipe (la barrita) */}
+              <div className="w-full flex justify-center pt-2 pb-1">
+                <div className="w-16 h-1.5 bg-gray-400 rounded-full"></div>
+              </div>
             </div>
 
             {/* Header flotante cuando se hace scroll */}
@@ -732,7 +714,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               >
                 <div
                   className="flex justify-between items-center px-5 py-4 cursor-pointer"
-                  onClick={() => toggleOption(9999)} // ID ficticio para complementos
+                  onClick={() => toggleOption(9999)}
                 >
                   <div>
                     <h2 className="text-xl font-bold text-gray-900">Complementa tu pedido</h2>
@@ -769,113 +751,111 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                 src="/api/placeholder/60/60"
                                 alt="Milanesa Napolitana"
                                 className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div>
-                              <span className="text-lg font-medium text-gray-800">Milanesa Napolitana</span>
-                              <div className="text-gray-500">+ {formatPrice(15500)}</div>
-                            </div>
-                          </div>
-                          {renderItemQuantityControl(1001, 1000, "Milanesa Napolitana", 15500, true)}
-                        </motion.div>
+                                />
+                                                            </div>
+                                                            <div>
+                                                              <span className="text-lg font-medium text-gray-800">Milanesa Napolitana</span>
+                                                              <div className="text-gray-500">+ {formatPrice(15500)}</div>
+                                                            </div>
+                                                          </div>
+                                                          {renderItemQuantityControl(1001, 1000, "Milanesa Napolitana", 15500, true)}
+                                                        </motion.div>
 
-                      {/* Complemento 2 */}
-                                              <motion.div
-                                                initial={{ opacity: 0, y: 5 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                transition={{ delay: 0.05 }}
-                                                className="flex items-center justify-between py-3 px-3 rounded-xl border border-gray-100 hover:border-gray-200"
-                                              >
-                                                <div className="flex items-center">
-                                                  <div className="w-14 h-14 bg-gray-100 rounded-lg mr-3 overflow-hidden">
-                                                    <img
-                                                      src="/api/placeholder/60/60"
-                                                      alt="Pizza Mediana de Muzzarella"
-                                                      className="w-full h-full object-cover"
-                                                    />
-                                                  </div>
-                                                  <div>
-                                                    <span className="text-lg font-medium text-gray-800">Pizza Mediana de Muzzarella</span>
-                                                    <div className="text-gray-500">+ {formatPrice(15500)}</div>
-                                                  </div>
-                                                </div>
-                                                {renderItemQuantityControl(1002, 1000, "Pizza Mediana de Muzzarella", 15500, true)}
+                                                        {/* Complemento 2 */}
+                                                        <motion.div
+                                                          initial={{ opacity: 0, y: 5 }}
+                                                          animate={{ opacity: 1, y: 0 }}
+                                                          transition={{ delay: 0.05 }}
+                                                          className="flex items-center justify-between py-3 px-3 rounded-xl border border-gray-100 hover:border-gray-200"
+                                                        >
+                                                          <div className="flex items-center">
+                                                            <div className="w-14 h-14 bg-gray-100 rounded-lg mr-3 overflow-hidden">
+                                                              <img
+                                                                src="/api/placeholder/60/60"
+                                                                alt="Pizza Mediana de Muzzarella"
+                                                                className="w-full h-full object-cover"
+                                                              />
+                                                            </div>
+                                                            <div>
+                                                              <span className="text-lg font-medium text-gray-800">Pizza Mediana de Muzzarella</span>
+                                                              <div className="text-gray-500">+ {formatPrice(15500)}</div>
+                                                            </div>
+                                                          </div>
+                                                          {renderItemQuantityControl(1002, 1000, "Pizza Mediana de Muzzarella", 15500, true)}
+                                                        </motion.div>
+                                                      </div>
+                                                    </motion.div>
+                                                  )}
+                                                </AnimatePresence>
                                               </motion.div>
                                             </div>
+
+                                            {/* Mensaje de error de validación */}
+                                            <AnimatePresence>
+                                              {validationError && (
+                                                <motion.div
+                                                  initial={{ opacity: 0, y: 10 }}
+                                                  animate={{ opacity: 1, y: 0 }}
+                                                  exit={{ opacity: 0, y: 10 }}
+                                                  className="mx-5 my-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm shadow-sm"
+                                                >
+                                                  <div className="flex items-center">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                                    </svg>
+                                                    {validationError}
+                                                  </div>
+                                                </motion.div>
+                                              )}
+                                            </AnimatePresence>
+
+                                            {/* Controles de cantidad y botón de agregar */}
+                                            <div className="px-5 py-4 flex items-center justify-between sticky bottom-0 bg-white border-t border-gray-100 shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.05)] z-30">
+                                              <motion.div
+                                                whileHover={{ scale: 1.02 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                className="flex items-center h-12 rounded-full border border-gray-200 overflow-hidden shadow-sm bg-white"
+                                              >
+                                                <motion.button
+                                                  whileTap={{ scale: 0.9 }}
+                                                  className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                                  onClick={() => quantity > 1 && setQuantity(quantity - 1)}
+                                                >
+                                                  <Minus size={20} className="text-gray-700" />
+                                                </motion.button>
+                                                <span className="w-10 text-center font-medium">{quantity}</span>
+                                                <motion.button
+                                                  whileTap={{ scale: 0.9 }}
+                                                  className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                                  onClick={() => setQuantity(quantity + 1)}
+                                                >
+                                                  <Plus size={20} className="text-gray-700" />
+                                                </motion.button>
+                                              </motion.div>
+
+                                              <motion.button
+                                                whileHover={{ scale: 1.03 }}
+                                                whileTap={{ scale: 0.95 }}
+                                                onClick={handleAddToCart}
+                                                className="bg-gradient-to-r from-green-500 to-green-400 text-white px-6 py-3 rounded-full font-medium text-lg shadow-md hover:shadow-lg transition-all flex items-center space-x-2"
+                                              >
+                                                <span>Agregar</span>
+                                                <span className="font-bold">{formatPrice(totalPrice)}</span>
+                                              </motion.button>
+                                            </div>
+
+                                            {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
+                                            {isClosing && (
+                                              <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
+                                                <ChevronDown size={48} className="text-white drop-shadow-lg" />
+                                                <span className="text-white text-base font-medium mt-2 drop-shadow-lg">
+                                                  Suelta para cerrar
+                                                </span>
+                                              </div>
+                                            )}
                                           </motion.div>
-                                        )}
-                                      </AnimatePresence>
-                                    </motion.div>
-                                  </div>
-
-                                  {/* Mensaje de error de validación */}
-                                  <AnimatePresence>
-                                    {validationError && (
-                                      <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: 10 }}
-                                        className="mx-5 my-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm shadow-sm"
-                                      >
-                                        <div className="flex items-center">
-                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                          </svg>
-                                          {validationError}
-                                        </div>
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-
-                                  {/* Controles de cantidad y botón de agregar */}
-                                  <div className="px-5 py-4 flex items-center justify-between sticky bottom-0 bg-white border-t border-gray-100 shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.05)] z-30">
-                                    <motion.div
-                                      whileHover={{ scale: 1.02 }}
-                                      whileTap={{ scale: 0.98 }}
-                                      className="flex items-center h-12 rounded-full border border-gray-200 overflow-hidden shadow-sm bg-white"
-                                    >
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                                        onClick={() => quantity > 1 && setQuantity(quantity - 1)}
-                                      >
-                                        <Minus size={20} className="text-gray-700" />
-                                      </motion.button>
-                                      <span className="w-10 text-center font-medium">{quantity}</span>
-                                      <motion.button
-                                        whileTap={{ scale: 0.9 }}
-                                        className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                                        onClick={() => setQuantity(quantity + 1)}
-                                      >
-                                        <Plus size={20} className="text-gray-700" />
-                                      </motion.button>
-                                    </motion.div>
-
-                                    <motion.button
-                                      whileHover={{ scale: 1.03 }}
-                                      whileTap={{ scale: 0.95 }}
-                                      onClick={handleAddToCart}
-                                      className="bg-gradient-to-r from-green-500 to-green-400 text-white px-6 py-3 rounded-full font-medium text-lg shadow-md hover:shadow-lg transition-all flex items-center space-x-2"
-                                    >
-                                      <span>Agregar</span>
-                                      <span className="font-bold">{formatPrice(totalPrice)}</span>
-                                    </motion.button>
-                                  </div>
-
-                                  {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
-                                  {isClosing && (
-                                    <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
-                                      <ChevronDown size={48} className="text-white drop-shadow-lg" />
-                                      <span className="text-white text-base font-medium mt-2 drop-shadow-lg">
-                                        Suelta para cerrar
-                                      </span>
-                                    </div>
-                                  )}
-
-
-                                </motion.div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        );
-                      };
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  );
+                                };
