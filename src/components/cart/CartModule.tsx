@@ -1,7 +1,7 @@
 // src/components/cart/CartModule.tsx
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimationControls } from 'framer-motion';
 
 // Interfaces para opciones de producto
 interface OptionItem {
@@ -49,7 +49,7 @@ interface CartModuleProps {
   onAddToCart: (product: Product, quantity: number) => void;
 }
 
-// Función para bloquear el scroll en iOS - VERSIÓN CORREGIDA
+// Función para bloquear el scroll en iOS - VERSIÓN OPTIMIZADA
 const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivElement>) => {
   // Detectamos iOS
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
@@ -168,23 +168,32 @@ export const CartModule: React.FC<CartModuleProps> = ({
   product,
   onAddToCart
 }) => {
+  // Log para depuración
+  useEffect(() => {
+    console.log("CartModule renderizado. isOpen:", isOpen);
+    console.log("Product:", product);
+  }, [isOpen, product]);
+
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
   const [validationErrors, setValidationErrors] = useState<{[key: number]: string}>({});
   const [expandedOptions, setExpandedOptions] = useState<{[key: number]: boolean}>({});
+
+  // Control para las animaciones del modal
+  const modalControls = useAnimationControls();
 
   // Referencia al modal para controlar el scroll
   const modalRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
   const isDragging = useRef(false);
-  const [dragDistance, setDragDistance] = useState(0);
-  const [isClosing, setIsClosing] = useState(false);
+  const dragDistance = useRef(0);
+  const [visualDragDistance, setVisualDragDistance] = useState(0);
 
   // Activar el bloqueo de scroll
   useBodyScrollLock(isOpen, modalRef);
 
-  // NUEVO: Manejar swipe para cerrar desde cualquier parte del modal
+  // MEJORADO: Manejar swipe para cerrar desde cualquier parte del modal
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
 
@@ -207,10 +216,10 @@ export const CartModule: React.FC<CartModuleProps> = ({
       if (diff > 0 && modal.scrollTop <= 0) {
         // Aplica resistencia para un efecto más natural
         const resistance = 0.6;
-        const transformY = Math.pow(diff, resistance);
+        dragDistance.current = Math.pow(diff, resistance);
+        setVisualDragDistance(dragDistance.current);
 
-        setDragDistance(transformY);
-        setIsClosing(diff > 80);
+        // Prevenir scroll del documento
         e.preventDefault();
       }
     };
@@ -219,15 +228,17 @@ export const CartModule: React.FC<CartModuleProps> = ({
       if (!isDragging.current) return;
 
       const diff = currentY.current - startY.current;
+      const velocity = Math.abs(diff) / 300; // Velocidad aproximada del gesto
 
-      if (diff > 65) {
+      // Si se ha arrastrado lo suficiente O el gesto fue rápido
+      if (diff > 80 || (diff > 30 && velocity > 0.5)) {
         // Animar hacia abajo para cerrar
-        setDragDistance(window.innerHeight);
+        setVisualDragDistance(window.innerHeight);
         setTimeout(onClose, 300);
       } else {
         // Volver a la posición original
-        setDragDistance(0);
-        setIsClosing(false);
+        setVisualDragDistance(0);
+        dragDistance.current = 0;
       }
 
       isDragging.current = false;
@@ -248,8 +259,8 @@ export const CartModule: React.FC<CartModuleProps> = ({
   useEffect(() => {
     if (isOpen) {
       setQuantity(1);
-      setDragDistance(0);
-      setIsClosing(false);
+      setVisualDragDistance(0);
+      dragDistance.current = 0;
 
       // Inicializar las opciones seleccionadas
       if (product.options && product.options.length > 0) {
@@ -435,9 +446,9 @@ export const CartModule: React.FC<CartModuleProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col justify-end backdrop-blur-[1px]"
+          className="fixed inset-0 z-[9999] flex flex-col justify-end backdrop-blur-[2px]"
           style={{
-            background: 'rgba(0,0,0,0.4)'  // Fondo semi-transparente oscuro
+            background: 'rgba(0,0,0,0.45)'  // Fondo semi-transparente oscuro mejorado
           }}
           onClick={onClose}
         >
@@ -447,19 +458,27 @@ export const CartModule: React.FC<CartModuleProps> = ({
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            transition={{
+              type: "spring",
+              damping: 30,
+              stiffness: 350,
+              mass: 1.1  // Añade más inercia para un efecto más natural
+            }}
             className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-content-scroll"
             onClick={e => e.stopPropagation()}
             style={{
               WebkitOverflowScrolling: 'touch',
               overscrollBehavior: 'contain',
-              transform: dragDistance > 0 ? `translateY(${dragDistance}px)` : 'translateY(0)',
-              transition: dragDistance === 0 ? 'transform 0.3s ease-out' : 'none'
+              boxShadow: '0px -8px 40px rgba(0, 0, 0, 0.12)',
+              transform: visualDragDistance > 0 ? `translateY(${visualDragDistance}px)` : 'translateY(0)',
+              transition: visualDragDistance === 0 ? 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.0)' : 'none',
+              opacity: visualDragDistance > 0 ? Math.max(0.7, 1 - visualDragDistance / 500) : 1,
+              zIndex: 10000
             }}
           >
             {/* Indicador visual de swipe mejorado */}
             <div className="pt-2 pb-1">
-              <div className={`swipe-indicator ${isClosing ? 'closing' : ''}`}></div>
+              <div className={`swipe-indicator ${dragDistance.current > 40 ? 'closing' : ''}`}></div>
             </div>
 
             {/* Botón de cerrar en la parte superior */}
@@ -644,18 +663,6 @@ export const CartModule: React.FC<CartModuleProps> = ({
                 </button>
               </div>
             </div>
-
-            {/* Overlay visual para indicador de swipe */}
-            {isClosing && (
-              <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                <span className="text-white text-lg font-medium mt-2">
-                  Suelta para cerrar
-                </span>
-              </div>
-            )}
           </motion.div>
         </motion.div>
       )}
@@ -711,11 +718,17 @@ export const CartView: React.FC<{
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedItems, setExpandedItems] = useState<{[key: number]: boolean}>({});
   const modalRef = useRef<HTMLDivElement>(null);
+  const [visualDragDistance, setVisualDragDistance] = useState(0);
+
+  // Log para depuración
+  useEffect(() => {
+    console.log("CartView renderizado. isOpen:", isOpen);
+  }, [isOpen]);
 
   // Aplicar bloqueo de scroll
   useBodyScrollLock(isOpen, modalRef);
 
-  // NUEVO: Añadir swipe para cerrar el CartView también
+  // NUEVO: Añadir swipe para cerrar el CartView también (versión mejorada)
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
 
@@ -723,7 +736,6 @@ export const CartView: React.FC<{
     let startY = 0;
     let currentY = 0;
     let isDragging = false;
-    let modalTransform = 0;
 
     const handleTouchStart = (e: TouchEvent) => {
       if (modal.scrollTop <= 0) {
@@ -740,9 +752,9 @@ export const CartView: React.FC<{
 
       // Si estamos en la parte superior del modal
       if (deltaY > 0 && modal.scrollTop <= 0) {
-        const resistance = 0.4;
-        modalTransform = Math.pow(deltaY, resistance);
-        modal.style.transform = `translateY(${modalTransform}px)`;
+        const resistance = 0.5;
+        const transformY = Math.pow(deltaY, resistance);
+        setVisualDragDistance(transformY);
         e.preventDefault();
       }
     };
@@ -750,304 +762,315 @@ export const CartView: React.FC<{
     const handleTouchEnd = () => {
       if (!isDragging) return;
 
-      // Si se ha arrastrado lo suficiente
-      if (modalTransform > 120) {
-        modal.style.transition = 'transform 0.3s ease-out';
-        modal.style.transform = `translateY(${window.innerHeight}px)`;
+      const deltaY = currentY - startY;
+      const velocity = Math.abs(deltaY) / 300; // Velocidad aproximada del gesto
+
+      // Si se ha arrastrado lo suficiente o el gesto fue rápido
+      if (deltaY > 100 || (deltaY > 30 && velocity > 0.5)) {
+        // Animar hacia abajo con una curva personalizada
+        setVisualDragDistance(window.innerHeight);
         setTimeout(onClose, 300);
       } else {
-        modal.style.transition = 'transform 0.3s ease-out';
-        modal.style.transform = 'translateY(0)';
-        setTimeout(() => {
-          modal.style.transition = '';
-        }, 300);
-      }
+          // Volver a la posición original con animación suave
+                  setVisualDragDistance(0);
+                }
 
-      isDragging = false;
-    };
+                isDragging = false;
+              };
 
-    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
-    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
-    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
+              modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+              modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+              modal.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    return () => {
-      modal.removeEventListener('touchstart', handleTouchStart);
-      modal.removeEventListener('touchmove', handleTouchMove);
-      modal.removeEventListener('touchend', handleTouchEnd);
-    };
-  }, [isOpen, onClose]);
+              return () => {
+                modal.removeEventListener('touchstart', handleTouchStart);
+                modal.removeEventListener('touchmove', handleTouchMove);
+                modal.removeEventListener('touchend', handleTouchEnd);
+              };
+            }, [isOpen, onClose]);
 
-  // Calcular el total
-  const totalAmount = items.reduce((sum, item) => {
-    let itemTotal = item.price * (item.quantity || 1);
+            // Calcular el total
+            const totalAmount = items.reduce((sum, item) => {
+              let itemTotal = item.price * (item.quantity || 1);
 
-    // Agregar precio adicional por opciones seleccionadas
-    if (item.selected_options) {
-      item.selected_options.forEach(option => {
-        option.selected_items.forEach(selectedItem => {
-          itemTotal += selectedItem.price_addition * (item.quantity || 1);
-        });
-      });
-    }
+              // Agregar precio adicional por opciones seleccionadas
+              if (item.selected_options) {
+                item.selected_options.forEach(option => {
+                  option.selected_items.forEach(selectedItem => {
+                    itemTotal += selectedItem.price_addition * (item.quantity || 1);
+                  });
+                });
+              }
 
-    return sum + itemTotal;
-  }, 0);
+              return sum + itemTotal;
+            }, 0);
 
-  // Formatear el precio
-  const formatPrice = (price: number) => {
-    // Asegurar que es un número
-    const numericPrice = Number(price) || 0;
+            // Formatear el precio
+            const formatPrice = (price: number) => {
+              // Asegurar que es un número
+              const numericPrice = Number(price) || 0;
 
-    // Convertir a entero (quitar decimales)
-    const intPrice = Math.round(numericPrice);
+              // Convertir a entero (quitar decimales)
+              const intPrice = Math.round(numericPrice);
 
-    // Formatear manualmente
-    const priceString = intPrice.toString();
-    let formattedPrice = '';
+              // Formatear manualmente
+              const priceString = intPrice.toString();
+              let formattedPrice = '';
 
-    // Agregar separadores de miles (puntos para formato chileno)
-    for (let i = 0; i < priceString.length; i++) {
-      if (i > 0 && (priceString.length - i) % 3 === 0) {
-        formattedPrice += '.';
-      }
-      formattedPrice += priceString[i];
-    }
+              // Agregar separadores de miles (puntos para formato chileno)
+              for (let i = 0; i < priceString.length; i++) {
+                if (i > 0 && (priceString.length - i) % 3 === 0) {
+                  formattedPrice += '.';
+                }
+                formattedPrice += priceString[i];
+              }
 
-    // Reemplazar punto por coma según el formato chileno mostrado en la imagen
-    formattedPrice = formattedPrice.replace(/\./g, ',');
+              // Reemplazar punto por coma según el formato chileno mostrado en la imagen
+              formattedPrice = formattedPrice.replace(/\./g, ',');
 
-    return '$' + formattedPrice;
-  };
+              return '$' + formattedPrice;
+            };
 
-  // Calcular precio total de un item con sus opciones
-  const calculateItemTotalPrice = (item: Product & { quantity: number }) => {
-    let basePrice = item.price;
+            // Calcular precio total de un item con sus opciones
+            const calculateItemTotalPrice = (item: Product & { quantity: number }) => {
+              let basePrice = item.price;
 
-    // Suma del precio de las opciones seleccionadas
-    if (item.selected_options) {
-      item.selected_options.forEach(option => {
-        option.selected_items.forEach(selectedItem => {
-          basePrice += selectedItem.price_addition;
-        });
-      });
-    }
+              // Suma del precio de las opciones seleccionadas
+              if (item.selected_options) {
+                item.selected_options.forEach(option => {
+                  option.selected_items.forEach(selectedItem => {
+                    basePrice += selectedItem.price_addition;
+                  });
+                });
+              }
 
-    return basePrice * (item.quantity || 1);
-  };
+              return basePrice * (item.quantity || 1);
+            };
 
-  // Alternar la expansión de un elemento del carrito
-  const toggleItemExpansion = (itemId: number) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [itemId]: !prev[itemId]
-    }));
-  };
+            // Alternar la expansión de un elemento del carrito
+            const toggleItemExpansion = (itemId: number) => {
+              setExpandedItems(prev => ({
+                ...prev,
+                [itemId]: !prev[itemId]
+              }));
+            };
 
-  // Si el modal no está abierto, no renderizar nada
-  if (!isOpen) return null;
+            // Si el modal no está abierto, no renderizar nada
+            if (!isOpen) return null;
 
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col justify-end backdrop-blur-[1px]"
-          style={{
-            background: 'rgba(0,0,0,0.4)'  // Fondo semi-transparente oscuro
-          }}
-          onClick={onClose}
-        >
-          <motion.div
-            ref={modalRef}
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-content-scroll"
-            onClick={e => e.stopPropagation()}
-            style={{
-              WebkitOverflowScrolling: 'touch',
-              overscrollBehavior: 'contain'
-            }}
-          >
-            {/* Indicador de swipe */}
-            <div className="pt-2 pb-1">
-              <div className="swipe-indicator"></div>
-            </div>
+            return (
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[9999] flex flex-col justify-end backdrop-blur-[2px]"
+                    style={{
+                      background: 'rgba(0,0,0,0.45)'  // Fondo semi-transparente oscuro mejorado
+                    }}
+                    onClick={onClose}
+                  >
+                    <motion.div
+                      ref={modalRef}
+                      initial={{ y: "100%" }}
+                      animate={{ y: 0 }}
+                      exit={{ y: "100%" }}
+                      transition={{
+                        type: "spring",
+                        damping: 30,
+                        stiffness: 350,
+                        mass: 1.1  // Añade más inercia para un efecto más natural
+                      }}
+                      className="bg-white rounded-t-3xl max-h-[90vh] overflow-y-auto modal-content-scroll"
+                      onClick={e => e.stopPropagation()}
+                      style={{
+                        WebkitOverflowScrolling: 'touch',
+                        overscrollBehavior: 'contain',
+                        boxShadow: '0px -8px 40px rgba(0, 0, 0, 0.12)',
+                        transform: visualDragDistance > 0 ? `translateY(${visualDragDistance}px)` : 'translateY(0)',
+                        transition: visualDragDistance === 0 ? 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.0)' : 'none',
+                        opacity: visualDragDistance > 0 ? Math.max(0.7, 1 - visualDragDistance / 500) : 1,
+                        zIndex: 10000
+                      }}
+                    >
+                      {/* Indicador de swipe */}
+                      <div className="pt-2 pb-1">
+                        <div className="swipe-indicator"></div>
+                      </div>
 
-            {/* Encabezado */}
-            <div className="sticky top-0 bg-white p-4 border-b z-10">
-              <div className="flex justify-between items-center">
-                <button
-                  onClick={onClose}
-                  className="p-2"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-                <h2 className="font-bold text-xl">Tu pedido</h2>
-                <div className="w-6"></div> {/* Espaciador para centrar el título */}
-              </div>
-            </div>
-
-            {/* Lista de productos */}
-            <div className="p-4 inner-scrollable">
-              {items.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                  </svg>
-                  <p className="text-gray-500 text-lg">Tu carrito está vacío</p>
-                </div>
-              ) : (
-                <ul className="space-y-4">
-                  {items.map((item) => (
-                    <li key={item.id} className="border border-gray-100 rounded-lg overflow-hidden shadow-sm">
-                      {/* Cabecera del producto */}
-                      <div className="p-4 bg-white">
-                        <div className="flex items-start">
-                          {/* Imagen del producto */}
-                          <div className="relative w-16 h-16 rounded overflow-hidden mr-3 flex-shrink-0">
-                            {item.image_url ? (
-                              <Image
-                                src={item.image_url}
-                                alt={item.name}
-                                fill
-                                style={{ objectFit: 'cover' }}
-                              />
-                            ) : (
-                              <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Información del producto */}
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-medium text-gray-900">{item.name}</h3>
-
-                                {/* Mostrar resumen de opciones solo si hay */}
-                                {item.selected_options && item.selected_options.some(opt => opt.selected_items.length > 0) && (
-                                  <div
-                                    className="text-sm text-gray-500 mt-1 cursor-pointer flex items-center"
-                                    onClick={() => toggleItemExpansion(item.id)}
-                                  >
-                                    <span>Ver personalización</span>
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      className={`h-4 w-4 ml-1 transition-transform ${expandedItems[item.id] ? 'rotate-180' : ''}`}
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              <span className="font-bold text-gray-800">{formatPrice(calculateItemTotalPrice(item))}</span>
-                            </div>
-
-                            {/* Controles de cantidad */}
-                            <div className="flex justify-between items-center mt-3">
-                              <div className="flex items-center border border-gray-300 rounded-full overflow-hidden">
-                                <button
-                                  onClick={() => {
-                                    const newQuantity = (item.quantity || 1) - 1;
-                                    if (newQuantity <= 0) {
-                                      onRemoveItem(item.id);
-                                    } else {
-                                      onUpdateQuantity(item.id, newQuantity);
-                                    }
-                                  }}
-                                  className="w-8 h-8 flex items-center justify-center text-xl font-semibold text-gray-500"
-                                >
-                                  −
-                                </button>
-                                <span className="w-8 text-center font-medium">{item.quantity || 1}</span>
-                                <button
-                                  onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) + 1)}
-                                  className="w-8 h-8 flex items-center justify-center text-xl font-semibold text-gray-500"
-                                >
-                                  +
-                                </button>
-                              </div>
-
-                              {/* Botón para eliminar */}
-                              <button
-                                onClick={() => onRemoveItem(item.id)}
-                                className="text-red-500"
-                              >
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
-                          </div>
+                      {/* Encabezado */}
+                      <div className="sticky top-0 bg-white p-4 border-b z-10">
+                        <div className="flex justify-between items-center">
+                          <button
+                            onClick={onClose}
+                            className="p-2"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                          <h2 className="font-bold text-xl">Tu pedido</h2>
+                          <div className="w-6"></div> {/* Espaciador para centrar el título */}
                         </div>
                       </div>
-                    </div>
 
-                    {/* Detalle de opciones seleccionadas (expandible) */}
-                    {expandedItems[item.id] && item.selected_options && (
-                      <div className="bg-gray-50 p-4 border-t border-gray-100">
-                        <h4 className="font-medium text-sm text-gray-700 mb-2">Personalización:</h4>
-                        <ul className="space-y-1">
-                          {item.selected_options
-                            .filter(option => option.selected_items.length > 0)
-                            .map(option => (
-                              <li key={option.option_id} className="text-sm">
-                                <span className="text-gray-600">{option.option_name}:</span>
-                                <span className="ml-1">
-                                  {option.selected_items.map((item, idx) => (
-                                    <span key={item.item_id}>
-                                      {item.item_name}
-                                      {item.price_addition > 0 && ` (+${formatPrice(item.price_addition)})`}
-                                      {idx < option.selected_items.length - 1 ? ', ' : ''}
-                                    </span>
-                                  ))}
-                                </span>
-                              </li>
+                      {/* Lista de productos */}
+                      <div className="p-4 inner-scrollable">
+                        {items.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-12">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <p className="text-gray-500 text-lg">Tu carrito está vacío</p>
+                          </div>
+                        ) : (
+                          <ul className="space-y-4">
+                            {items.map((item) => (
+                              <li key={item.id} className="border border-gray-100 rounded-lg overflow-hidden shadow-sm">
+                                {/* Cabecera del producto */}
+                                <div className="p-4 bg-white">
+                                  <div className="flex items-start">
+                                    {/* Imagen del producto */}
+                                    <div className="relative w-16 h-16 rounded overflow-hidden mr-3 flex-shrink-0">
+                                      {item.image_url ? (
+                                        <Image
+                                          src={item.image_url}
+                                          alt={item.name}
+                                          fill
+                                          style={{ objectFit: 'cover' }}
+                                        />
+                                      ) : (
+                                        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                          </svg>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Información del producto */}
+                                    <div className="flex-1">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <h3 className="font-medium text-gray-900">{item.name}</h3>
+
+                                          {/* Mostrar resumen de opciones solo si hay */}
+                                          {item.selected_options && item.selected_options.some(opt => opt.selected_items.length > 0) && (
+                                            <div
+                                              className="text-sm text-gray-500 mt-1 cursor-pointer flex items-center"
+                                              onClick={() => toggleItemExpansion(item.id)}
+                                            >
+                                              <span>Ver personalización</span>
+                                              <svg
+                                                xmlns="http://www.w3.org/2000/svg"
+                                                className={`h-4 w-4 ml-1 transition-transform ${expandedItems[item.id] ? 'rotate-180' : ''}`}
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                                stroke="currentColor"
+                                              >
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <span className="font-bold text-gray-800">{formatPrice(calculateItemTotalPrice(item))}</span>
+                                      </div>
+
+                                      {/* Controles de cantidad */}
+                                      <div className="flex justify-between items-center mt-3">
+                                        <div className="flex items-center border border-gray-300 rounded-full overflow-hidden">
+                                          <button
+                                            onClick={() => {
+                                              const newQuantity = (item.quantity || 1) - 1;
+                                              if (newQuantity <= 0) {
+                                                onRemoveItem(item.id);
+                                              } else {
+                                                onUpdateQuantity(item.id, newQuantity);
+                                              }
+                                            }}
+                                            className="w-8 h-8 flex items-center justify-center text-xl font-semibold text-gray-500"
+                                          >
+                                            −
+                                          </button>
+                                          <span className="w-8 text-center font-medium">{item.quantity || 1}</span>
+                                          <button
+                                            onClick={() => onUpdateQuantity(item.id, (item.quantity || 1) + 1)}
+                                            className="w-8 h-8 flex items-center justify-center text-xl font-semibold text-gray-500"
+                                          >
+                                            +
+                                          </button>
+                                        </div>
+
+                                        {/* Botón para eliminar */}
+                                        <button
+                                          onClick={() => onRemoveItem(item.id)}
+                                          className="text-red-500"
+                                        >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Detalle de opciones seleccionadas (expandible) */}
+                              {expandedItems[item.id] && item.selected_options && (
+                                <div className="bg-gray-50 p-4 border-t border-gray-100">
+                                  <h4 className="font-medium text-sm text-gray-700 mb-2">Personalización:</h4>
+                                  <ul className="space-y-1">
+                                    {item.selected_options
+                                      .filter(option => option.selected_items.length > 0)
+                                      .map(option => (
+                                        <li key={option.option_id} className="text-sm">
+                                          <span className="text-gray-600">{option.option_name}:</span>
+                                          <span className="ml-1">
+                                            {option.selected_items.map((item, idx) => (
+                                              <span key={item.item_id}>
+                                                {item.item_name}
+                                                {item.price_addition > 0 && ` (+${formatPrice(item.price_addition)})`}
+                                                {idx < option.selected_items.length - 1 ? ', ' : ''}
+                                              </span>
+                                            ))}
+                                          </span>
+                                        </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </li>
                           ))}
                         </ul>
+                      )}
+                    </div>
+
+                    {/* Botón de checkout */}
+                    {items.length > 0 && (
+                      <div className="sticky bottom-0 w-full p-4 bg-white border-t">
+                        <button
+                          onClick={() => {
+                            setIsSubmitting(true);
+                            setTimeout(() => {
+                              onCheckout();
+                              setIsSubmitting(false);
+                            }, 1000);
+                          }}
+                          disabled={isSubmitting}
+                          className={`w-full bg-green-500 text-white py-3 px-6 rounded-full font-bold text-lg flex justify-between items-center ${
+                            isSubmitting ? 'opacity-75' : 'hover:bg-green-600'
+                          }`}
+                        >
+                          <span>{isSubmitting ? 'Procesando...' : 'Realizar pedido'}</span>
+                          <span>{formatPrice(totalAmount)}</span>
+                        </button>
                       </div>
                     )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          );
+          };
 
-          {/* Botón de checkout */}
-          {items.length > 0 && (
-            <div className="sticky bottom-0 w-full p-4 bg-white border-t">
-              <button
-                onClick={() => {
-                  setIsSubmitting(true);
-                  setTimeout(() => {
-                    onCheckout();
-                    setIsSubmitting(false);
-                  }, 1000);
-                }}
-                disabled={isSubmitting}
-                className={`w-full bg-green-500 text-white py-3 px-6 rounded-full font-bold text-lg flex justify-between items-center ${
-                  isSubmitting ? 'opacity-75' : 'hover:bg-green-600'
-                }`}
-              >
-                <span>{isSubmitting ? 'Procesando...' : 'Realizar pedido'}</span>
-                <span>{formatPrice(totalAmount)}</span>
-              </button>
-            </div>
-          )}
-        </motion.div>
-      </motion.div>
-    )}
-  </AnimatePresence>
-);
-};
