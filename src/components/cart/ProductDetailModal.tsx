@@ -84,127 +84,91 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     };
   }, [isOpen]);
 
-
-  // Reemplaza el useEffect para el swipe en src/components/cart/ProductDetailModal.tsx
-
+  // Efecto para implementar swipe-to-dismiss
   useEffect(() => {
+    // Solo ejecutar si el modal está abierto y existe la referencia
     if (!isOpen || !modalRef.current) return;
 
+    // Obtener una referencia al elemento del modal
     const modal = modalRef.current;
-    let startY = 0;
-    let startTime = 0;
-    let currentY = 0;
-    let isDragging = false;
-    let canCloseWithSwipe = false;
-    let velocity = 0;
 
-    const handleTouchStart = (e: TouchEvent) => {
-      // Área más amplia para iniciar el swipe (30px desde el tope)
-      canCloseWithSwipe = modal.scrollTop <= 30;
+    // Variables para detectar el swipe
+    let startY = 0; // Donde comienza el toque
+    let currentY = 0; // Posición actual del toque
+    let isDragging = false; // ¿Estamos arrastrando?
 
-      if (canCloseWithSwipe) {
-        startY = e.touches[0].clientY;
-        startTime = Date.now();
-        isDragging = true;
-        console.log("🔄 Swipe iniciado", { startY, scrollTop: modal.scrollTop });
-      }
+    // Función que maneja el inicio del toque
+    const handleTouchStart = (e) => {
+      // Guardar la posición inicial del toque
+      startY = e.touches[0].clientY;
+      // Activar el modo de arrastre
+      isDragging = true;
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDragging || !canCloseWithSwipe) return;
+    // Función que maneja el movimiento del dedo
+    const handleTouchMove = (e) => {
+      // Si no estamos en modo arrastre, no hacer nada
+      if (!isDragging) return;
 
+      // Obtener la posición actual del dedo
       currentY = e.touches[0].clientY;
+      // Calcular cuánto se ha movido desde el inicio
       const diff = currentY - startY;
 
       // Solo permitir arrastrar hacia abajo (diff > 0)
       if (diff > 0) {
-        // Solo prevenir el comportamiento predeterminado si estamos realmente
-        // en la parte superior para evitar interferir con el scroll normal
-        if (modal.scrollTop <= 2) {
-          try {
-            e.preventDefault();
-          } catch (err) {
-            console.log("⚠️ No se pudo prevenir el comportamiento predeterminado");
-          }
-        }
-
-        // Física del movimiento más natural con resistencia
-        const damping = 0.6; // Factor de amortiguación (más alto = menos resistencia)
-        const transformY = Math.pow(diff, damping);
-
-        // Aplicar la transformación con estilo
-        modal.style.transform = `translateY(${transformY}px)`;
+        // Aplicar transformación visual con algo de resistencia
+        modal.style.transform = `translateY(${diff}px)`;
         modal.style.transition = 'none';
 
-        // Feedback visual para el usuario
+        // Mostrar u ocultar el indicador visual
         if (diff > 80) {
           setIsClosing(true);
-          console.log("👆 Listo para cerrar", { diff });
         } else {
           setIsClosing(false);
         }
-
-        // Calcular velocidad para gestos rápidos
-        velocity = (currentY - startY) / (Date.now() - startTime);
       }
     };
 
+    // Función que maneja cuando se levanta el dedo
     const handleTouchEnd = () => {
-      if (!isDragging || !canCloseWithSwipe) return;
+      // Si no estamos en modo arrastre, no hacer nada
+      if (!isDragging) return;
 
+      // Calcular la distancia total recorrida
       const diff = currentY - startY;
-      const speedThreshold = 0.3; // Umbral de velocidad para cerrar con gesto rápido
 
-      console.log("👆 Touch end", { diff, velocity });
-
-      // Cerrar el modal si:
-      // 1. Se arrastró lo suficiente hacia abajo (diff > 100) O
-      // 2. El gesto fue lo suficientemente rápido (velocity > speedThreshold)
-      if ((diff > 100 && modal.scrollTop <= 10) || (velocity > speedThreshold && diff > 30)) {
-        // Animar el cierre con una transformación suave
+      // Si el arrastre fue suficiente, cerrar el modal
+      if (diff > 100) {
+        // Animar el modal fuera de la pantalla
         modal.style.transform = `translateY(${window.innerHeight}px)`;
-        modal.style.transition = 'transform 0.4s ease-out';
+        modal.style.transition = 'transform 0.3s ease-out';
 
-        // Esperar a que termine la animación antes de cerrar
+        // Esperar a que termine la animación antes de cerrar realmente
         setTimeout(() => {
-          console.log("🔒 Ejecutando onClose");
           onClose();
-        }, 400);
+        }, 300);
       } else {
-        // Volver a la posición original con animación suave
+        // Si no fue suficiente, volver a la posición original
         modal.style.transform = 'translateY(0)';
         modal.style.transition = 'transform 0.3s ease-out';
       }
 
-      // Resetear estados
+      // Resetear el modo de arrastre
       isDragging = false;
       setIsClosing(false);
-      velocity = 0;
     };
 
-    // Importante: manejar también cancelación de touch (por ejemplo, alertas del sistema)
-    const handleTouchCancel = () => {
-      console.log("⚠️ Touch cancelado");
-      if (isDragging) {
-        modal.style.transform = 'translateY(0)';
-        modal.style.transition = 'transform 0.3s ease-out';
-        setIsClosing(false);
-        isDragging = false;
-        velocity = 0;
-      }
-    };
+    // Registrar los eventos en el modal
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: true });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
 
-    // Registrar eventos en fase de captura para mayor prioridad
-    modal.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-    modal.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-    modal.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-    modal.addEventListener('touchcancel', handleTouchCancel, { passive: true, capture: true });
-
+    // Limpiar los eventos cuando el componente se desmonte
     return () => {
-      modal.removeEventListener('touchstart', handleTouchStart, { capture: true });
-      modal.removeEventListener('touchmove', handleTouchMove, { capture: true });
-      modal.removeEventListener('touchend', handleTouchEnd, { capture: true });
-      modal.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isOpen, onClose]);
 
@@ -540,7 +504,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           >
             {/* Indicador de swipe */}
             <div className="w-full flex justify-center pt-2 pb-1">
-              <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+              <div className="w-14 h-1.5 bg-gray-400 rounded-full"></div>
             </div>
 
             {/* Header flotante cuando se hace scroll */}
@@ -900,9 +864,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                                   {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
                                   {isClosing && (
-                                    <div className="absolute inset-0 bg-black bg-opacity-10 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
-                                      <ChevronDown size={48} className="text-white drop-shadow-lg opacity-80" />
-                                      <span className="text-white text-base font-medium mt-2 drop-shadow-lg opacity-80">
+                                    <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
+                                      <ChevronDown size={48} className="text-white drop-shadow-lg" />
+                                      <span className="text-white text-base font-medium mt-2 drop-shadow-lg">
                                         Suelta para cerrar
                                       </span>
                                     </div>
