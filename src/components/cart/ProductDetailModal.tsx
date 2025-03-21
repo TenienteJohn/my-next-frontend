@@ -162,11 +162,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       setValidationError(null);
       setScrollPosition(0);
       setIsHeaderCompact(false);
-      setCanSwipeDown(true);
-      setIsDragging(false);
+      //setCanSwipeDown(true);
+      //setIsDragging(false);
 
       // Resetear posición y
-      y.set(0);
+      //y.set(0);
 
       // Inicializar opciones
       if (product.options) {
@@ -458,8 +458,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 backdrop-blur-sm"
-
-          style={{ opacity }}
+          onClick={onClose}
+          //style={{ opacity }}
         >
           <motion.div
             ref={modalRef}
@@ -848,7 +848,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                   </div>
 
                                   {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
-                                  {isClosing && canSwipeDown && (
+                                  {isClosing && (
                                     <div className="absolute inset-0 bg-black bg-opacity-5 pointer-events-none flex flex-col items-center justify-start pt-20">
                                       <ChevronDown size={40} className="text-white opacity-70" />
                                       <span className="text-white text-sm opacity-70 mt-2">Desliza para cerrar</span>
