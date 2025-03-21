@@ -85,6 +85,20 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
           touch-action: pan-y !important;
           overscroll-behavior: contain;
         }
+
+        .swipe-indicator {
+          width: 40px;
+          height: 5px;
+          background-color: rgba(0,0,0,0.2);
+          border-radius: 99px;
+          margin: 8px auto;
+          transition: all 0.3s;
+        }
+
+        .swipe-indicator.closing {
+          width: 50px;
+          background-color: rgba(0,0,0,0.4);
+        }
       `;
       document.head.appendChild(styleEl);
     }
@@ -161,7 +175,6 @@ export const CartModule: React.FC<CartModuleProps> = ({
 
   // Referencia al modal para controlar el scroll
   const modalRef = useRef<HTMLDivElement>(null);
-  const swipeHandleRef = useRef<HTMLDivElement>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
   const isDragging = useRef(false);
@@ -171,38 +184,34 @@ export const CartModule: React.FC<CartModuleProps> = ({
   // Activar el bloqueo de scroll
   useBodyScrollLock(isOpen, modalRef);
 
-  // Manejar swipe hacia abajo para cerrar - VERSIÓN MEJORADA
+  // NUEVO: Manejar swipe para cerrar desde cualquier parte del modal
   useEffect(() => {
-    if (!isOpen || !swipeHandleRef.current) return;
+    if (!isOpen || !modalRef.current) return;
 
-    const swipeHandle = swipeHandleRef.current;
+    const modal = modalRef.current;
 
     const handleTouchStart = (e: TouchEvent) => {
-      // Para el área de swipe, prevenir el comportamiento por defecto
-      e.preventDefault();
-      startY.current = e.touches[0].clientY;
-      isDragging.current = true;
+      if (modal.scrollTop <= 0) {
+        startY.current = e.touches[0].clientY;
+        isDragging.current = true;
+      }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDragging.current) return;
 
-      // Solo para el área de swipe handle, prevenir comportamiento por defecto
-      e.preventDefault();
-
       currentY.current = e.touches[0].clientY;
       const diff = currentY.current - startY.current;
 
-      // Solo permitir arrastrar hacia abajo
-      if (diff > 0) {
-        // Aplicar resistencia progresiva
+      // Solo permitir arrastrar hacia abajo cuando estamos en la parte superior
+      if (diff > 0 && modal.scrollTop <= 0) {
+        // Aplica resistencia para un efecto más natural
         const resistance = 0.6;
         const transformY = Math.pow(diff, resistance);
 
         setDragDistance(transformY);
-
-        // Mostrar indicador visual cuando se arrastra lo suficiente
         setIsClosing(diff > 80);
+        e.preventDefault();
       }
     };
 
@@ -211,17 +220,12 @@ export const CartModule: React.FC<CartModuleProps> = ({
 
       const diff = currentY.current - startY.current;
 
-      // Si se ha arrastrado lo suficiente, cerrar el modal
       if (diff > 65) {
-        // Animar hacia abajo
+        // Animar hacia abajo para cerrar
         setDragDistance(window.innerHeight);
-
-        // Cerrar después de la animación
-        setTimeout(() => {
-          onClose();
-        }, 300);
+        setTimeout(onClose, 300);
       } else {
-        // Volver a la posición original con animación
+        // Volver a la posición original
         setDragDistance(0);
         setIsClosing(false);
       }
@@ -229,23 +233,14 @@ export const CartModule: React.FC<CartModuleProps> = ({
       isDragging.current = false;
     };
 
-    const handleTouchCancel = () => {
-      setDragDistance(0);
-      setIsClosing(false);
-      isDragging.current = false;
-    };
-
-    // Asignar eventos SOLO al swipe handle (no al modal completo)
-    swipeHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
-    swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
-    swipeHandle.addEventListener('touchend', handleTouchEnd, { passive: true });
-    swipeHandle.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      swipeHandle.removeEventListener('touchstart', handleTouchStart);
-      swipeHandle.removeEventListener('touchmove', handleTouchMove);
-      swipeHandle.removeEventListener('touchend', handleTouchEnd);
-      swipeHandle.removeEventListener('touchcancel', handleTouchCancel);
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isOpen, onClose]);
 
@@ -442,7 +437,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex flex-col justify-end backdrop-blur-[1px]"
           style={{
-            background: 'rgba(255,255,255,0.05)'
+            background: 'rgba(0,0,0,0.4)'  // Fondo semi-transparente oscuro
           }}
           onClick={onClose}
         >
@@ -462,19 +457,9 @@ export const CartModule: React.FC<CartModuleProps> = ({
               transition: dragDistance === 0 ? 'transform 0.3s ease-out' : 'none'
             }}
           >
-            {/* Área para swipe hacia abajo */}
-            <div
-              ref={swipeHandleRef}
-              className="absolute top-0 left-0 w-full h-16 z-30"
-              style={{
-                cursor: 'grab',
-                touchAction: 'none'
-              }}
-            >
-              {/* Indicador visual de swipe */}
-              <div className="w-full flex justify-center pt-3">
-                <div className="w-12 h-1.5 bg-gray-300 rounded-full"></div>
-              </div>
+            {/* Indicador visual de swipe mejorado */}
+            <div className="pt-2 pb-1">
+              <div className={`swipe-indicator ${isClosing ? 'closing' : ''}`}></div>
             </div>
 
             {/* Botón de cerrar en la parte superior */}
@@ -730,6 +715,68 @@ export const CartView: React.FC<{
   // Aplicar bloqueo de scroll
   useBodyScrollLock(isOpen, modalRef);
 
+  // NUEVO: Añadir swipe para cerrar el CartView también
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const modal = modalRef.current;
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let modalTransform = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (modal.scrollTop <= 0) {
+        startY = e.touches[0].clientY;
+        isDragging = true;
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging) return;
+
+      currentY = e.touches[0].clientY;
+      const deltaY = currentY - startY;
+
+      // Si estamos en la parte superior del modal
+      if (deltaY > 0 && modal.scrollTop <= 0) {
+        const resistance = 0.4;
+        modalTransform = Math.pow(deltaY, resistance);
+        modal.style.transform = `translateY(${modalTransform}px)`;
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (!isDragging) return;
+
+      // Si se ha arrastrado lo suficiente
+      if (modalTransform > 120) {
+        modal.style.transition = 'transform 0.3s ease-out';
+        modal.style.transform = `translateY(${window.innerHeight}px)`;
+        setTimeout(onClose, 300);
+      } else {
+        modal.style.transition = 'transform 0.3s ease-out';
+        modal.style.transform = 'translateY(0)';
+        setTimeout(() => {
+          modal.style.transition = '';
+        }, 300);
+      }
+
+      isDragging = false;
+    };
+
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen, onClose]);
+
   // Calcular el total
   const totalAmount = items.reduce((sum, item) => {
     let itemTotal = item.price * (item.quantity || 1);
@@ -808,7 +855,7 @@ export const CartView: React.FC<{
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex flex-col justify-end backdrop-blur-[1px]"
           style={{
-            background: 'rgba(255,255,255,0.05)'
+            background: 'rgba(0,0,0,0.4)'  // Fondo semi-transparente oscuro
           }}
           onClick={onClose}
         >
@@ -825,6 +872,11 @@ export const CartView: React.FC<{
               overscrollBehavior: 'contain'
             }}
           >
+            {/* Indicador de swipe */}
+            <div className="pt-2 pb-1">
+              <div className="swipe-indicator"></div>
+            </div>
+
             {/* Encabezado */}
             <div className="sticky top-0 bg-white p-4 border-b z-10">
               <div className="flex justify-between items-center">
