@@ -1,5 +1,5 @@
 // src/components/cart/ProductDetailModal.tsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, ChevronDown, Plus, Minus, Trash2, Heart } from 'lucide-react';
@@ -48,6 +48,143 @@ interface ProductDetailModalProps {
   onAddToCart: (product: Product, quantity: number, selectedOptions: SelectedOption[]) => void;
 }
 
+// Clase para manejar el bloqueo de scroll, especialmente para iOS
+class ScrollLock {
+  private isLocked: boolean = false;
+  private scrollPosition: number = 0;
+  private originalStyles: Record<string, string> = {};
+  private isIOS: boolean = false;
+  private bodyElement: HTMLElement;
+  private htmlElement: HTMLElement;
+  private preventTouchMoveBound: (e: TouchEvent) => void;
+
+  constructor() {
+    this.bodyElement = document.body;
+    this.htmlElement = document.documentElement;
+    this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    this.preventTouchMoveBound = this.preventTouchMove.bind(this);
+  }
+
+  public lockScroll(): void {
+    if (this.isLocked) return;
+
+    // Guardar la posición actual del scroll
+    this.scrollPosition = window.pageYOffset || this.htmlElement.scrollTop;
+
+    // Guardar los estilos originales
+    this.saveOriginalStyles();
+
+    if (this.isIOS) {
+      // Solución específica para iOS
+      this.bodyElement.classList.add('modal-open-ios');
+      this.htmlElement.style.height = '100%';
+      this.htmlElement.style.overflow = 'hidden';
+
+      this.bodyElement.style.position = 'fixed';
+      this.bodyElement.style.top = `-${this.scrollPosition}px`;
+      this.bodyElement.style.width = '100%';
+      this.bodyElement.style.overflow = 'hidden';
+
+      // Prevenir el comportamiento de rebote en iOS
+      document.addEventListener('touchmove', this.preventTouchMoveBound, { passive: false });
+    } else {
+      // Para otros dispositivos
+      this.bodyElement.style.overflow = 'hidden';
+      this.bodyElement.style.paddingRight = this.getScrollbarWidth() + 'px';
+    }
+
+    this.isLocked = true;
+  }
+
+  public unlockScroll(): void {
+    if (!this.isLocked) return;
+
+    // Restaurar estilos originales
+    this.restoreOriginalStyles();
+
+    if (this.isIOS) {
+      // Restaurar posición del scroll para iOS
+      this.bodyElement.classList.remove('modal-open-ios');
+      document.removeEventListener('touchmove', this.preventTouchMoveBound);
+      window.scrollTo(0, this.scrollPosition);
+    }
+
+    this.isLocked = false;
+  }
+
+  private preventTouchMove(e: TouchEvent): void {
+    // Permitir el scroll dentro del modal si es necesario
+    const target = e.target as HTMLElement;
+    const modalContent = document.querySelector('.modal-content') as HTMLElement;
+
+    if (modalContent && modalContent.contains(target)) {
+      // Verificar si estamos en un elemento scrollable dentro del modal
+      const scrollableElement = this.getScrollableParent(target);
+
+      if (scrollableElement && scrollableElement !== document.body) {
+        const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
+        // Permitir scroll si no estamos en los límites
+        if (scrollTop > 0 && scrollTop + clientHeight < scrollHeight) {
+          return;
+        }
+
+        // Si estamos en los límites del scroll, prevenir el comportamiento de rebote
+        if (
+          (scrollTop <= 0 && e.touches[0].clientY > 0) ||
+          (scrollTop + clientHeight >= scrollHeight && e.touches[0].clientY < 0)
+        ) {
+          e.preventDefault();
+        }
+        return;
+      }
+    }
+
+    // Prevenir scroll en el fondo para cualquier otro caso
+    e.preventDefault();
+  }
+
+  private getScrollableParent(element: HTMLElement | null): HTMLElement | null {
+    if (!element) return null;
+
+    const style = window.getComputedStyle(element);
+    const overflowY = style.getPropertyValue('overflow-y');
+    const isScrollable = overflowY !== 'visible' && overflowY !== 'hidden';
+
+    if (isScrollable && element.scrollHeight > element.clientHeight) {
+      return element;
+    }
+
+    return this.getScrollableParent(element.parentElement);
+  }
+
+  private saveOriginalStyles(): void {
+    this.originalStyles = {
+      bodyPosition: this.bodyElement.style.position,
+      bodyTop: this.bodyElement.style.top,
+      bodyWidth: this.bodyElement.style.width,
+      bodyOverflow: this.bodyElement.style.overflow,
+      bodyPaddingRight: this.bodyElement.style.paddingRight,
+      htmlHeight: this.htmlElement.style.height,
+      htmlOverflow: this.htmlElement.style.overflow
+    };
+  }
+
+  private restoreOriginalStyles(): void {
+    this.bodyElement.style.position = this.originalStyles.bodyPosition || '';
+    this.bodyElement.style.top = this.originalStyles.bodyTop || '';
+    this.bodyElement.style.width = this.originalStyles.bodyWidth || '';
+    this.bodyElement.style.overflow = this.originalStyles.bodyOverflow || '';
+    this.bodyElement.style.paddingRight = this.originalStyles.bodyPaddingRight || '';
+
+    this.htmlElement.style.height = this.originalStyles.htmlHeight || '';
+    this.htmlElement.style.overflow = this.originalStyles.htmlOverflow || '';
+  }
+
+  private getScrollbarWidth(): number {
+    return window.innerWidth - this.htmlElement.clientWidth;
+  }
+}
+
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product,
   isOpen,
@@ -66,26 +203,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   const modalRef = useRef<HTMLDivElement>(null);
   const swipeHandleRef = useRef<HTMLDivElement>(null);
+  const scrollLockRef = useRef<ScrollLock | null>(null);
   const startY = useRef(0);
   const currentY = useRef(0);
   const isDragging = useRef(false);
 
+  // Inicializar el sistema de bloqueo de scroll
+  useEffect(() => {
+    if (!scrollLockRef.current) {
+      scrollLockRef.current = new ScrollLock();
+    }
+
+    // Añadir el estilo global CSS para iOS si no existe
+    if (!document.getElementById('modal-ios-style')) {
+      const style = document.createElement('style');
+      style.id = 'modal-ios-style';
+      style.innerHTML = `
+        .modal-open-ios {
+          position: fixed;
+          width: 100%;
+          overflow: hidden;
+          touch-action: none;
+          -webkit-overflow-scrolling: none;
+        }
+        .modal-content {
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   // Bloquear scroll en body cuando el modal está abierto
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+    if (isOpen && scrollLockRef.current) {
+      scrollLockRef.current.lockScroll();
+    } else if (scrollLockRef.current) {
+      scrollLockRef.current.unlockScroll();
     }
 
     return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      if (scrollLockRef.current) {
+        scrollLockRef.current.unlockScroll();
+      }
     };
   }, [isOpen]);
 
@@ -138,7 +299,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     };
   }, [isOpen]);
 
-  // Manejar eventos touch para el swipe
+  // Mejorado: Manejar eventos touch para el swipe
   useEffect(() => {
     // Evitamos ejecutar si el modal no está abierto
     if (!isOpen || !swipeHandleRef.current) return;
@@ -158,7 +319,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
       // Solo permitir arrastrar hacia abajo
       if (diff > 0) {
-          e.preventDefault();
+        // Previene el scroll de fondo en iOS
+        e.preventDefault();
+
         // Aplicar resistencia progresiva (se vuelve más difícil arrastrar a medida que se aleja)
         const resistance = 0.6;
         const transformY = Math.pow(diff, resistance);
@@ -212,6 +375,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       swipeHandle.removeEventListener('touchcancel', handleTouchCancel);
     };
   }, [isOpen, onClose]);
+
+  // Optimizado: Manejador de cierre de modal
+  const handleCloseModal = useCallback(() => {
+    if (isClosing) return; // Evitar cierre múltiple
+
+    // Animar cierre
+    setIsClosing(true);
+    setDragDistance(10); // Leve animación de salida
+
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+      setDragDistance(0);
+    }, 100);
+  }, [onClose, isClosing]);
 
   // No renderizamos nada si no está abierto
   if (!isOpen) return null;
@@ -461,7 +639,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 backdrop-blur-sm"
-          onClick={onClose}
+          onClick={handleCloseModal}
         >
           <motion.div
             ref={modalRef}
@@ -469,7 +647,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: 'spring', damping: 40, stiffness: 400 }}
-            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto scrollbar-hide relative"
+            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto modal-content relative"
             onClick={e => e.stopPropagation()}
             style={{
               boxShadow: '0px -4px 20px rgba(0, 0, 0, 0.1)',
@@ -514,7 +692,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="flex items-center justify-between p-4 absolute top-0 left-0 right-0 z-20">
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md"
               >
                 <X size={20} />
