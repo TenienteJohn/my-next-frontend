@@ -465,7 +465,7 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
                   );
 
                   await fetchOptions();
-                  setEditingItem(null);
+
                   if (onUpdateComplete) {
                       onUpdateComplete();
                   }
