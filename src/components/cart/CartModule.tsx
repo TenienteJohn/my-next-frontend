@@ -450,9 +450,9 @@ export const CartModule: React.FC<CartModuleProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[9999] flex flex-col justify-end backdrop-blur-[2px]"
+          className="fixed inset-0 z-[9999] flex flex-col justify-end backdrop-blur-[0.5px]"
           style={{
-            background: 'rgba(0,0,0,0.45)'  // Fondo semi-transparente oscuro mejorado
+            background: 'rgba(0,0,0,0.08)'  // Fondo apenas perceptible
           }}
           onClick={onClose}
         >
