@@ -66,6 +66,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const currentY = useRef(0);
   const [isClosing, setIsClosing] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      // Bloquear scroll del fondo
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      // Restaurar scroll al cerrar
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
+
+    return () => {
+      // Asegurar limpieza si el componente se desmonta
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
+  }, [isOpen]);
+
+
   // AÑADIR ESTE NUEVO EFECTO
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
@@ -77,15 +99,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     let canCloseWithSwipe = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      // Permitir iniciar swipe si estamos en los primeros 50px (más generoso)
-      canCloseWithSwipe = modal.scrollTop <= 50;
+      canCloseWithSwipe = modal.scrollTop <= 5; // Detecta si está en la parte superior
 
       if (canCloseWithSwipe) {
         startY = e.touches[0].clientY;
         isDragging = true;
-
-        // Log para depuración
-        console.log("Touch start en Y:", startY, "scrollTop:", modal.scrollTop);
       }
     };
 
@@ -95,31 +113,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       currentY = e.touches[0].clientY;
       const diff = currentY - startY;
 
-      // Solo permitir arrastrar hacia abajo (diff > 0)
       if (diff > 0) {
-        // Asegurarse de que el scroll del modal esté en la parte superior
-        if (modal.scrollTop <= 5) {
-          // Importante: preventDefault puede causar problemas en iOS
-          try {
-            e.preventDefault();
-          } catch (err) {
-            console.log("No se pudo prevenir el comportamiento predeterminado");
-          }
+        e.preventDefault(); // Evita scroll en Safari/iOS
 
-          // Aplicar transformación con física más natural
-          const damping = 0.5; // Factor de amortiguación
-          const transformY = Math.pow(diff, damping);
-          modal.style.transform = `translateY(${transformY}px)`;
-          modal.style.transition = 'none';
+        const damping = 0.5;
+        const transformY = Math.pow(diff, damping);
+        modal.style.transform = `translateY(${transformY}px)`;
+        modal.style.transition = 'none';
 
-          // Feedback visual
-          if (diff > 100) {
-            setIsClosing(true);
-            // Log para depuración
-            console.log("Gesto suficiente para cerrar, diff:", diff);
-          } else {
-            setIsClosing(false);
-          }
+        if (diff > 100) {
+          setIsClosing(true);
+        } else {
+          setIsClosing(false);
         }
       }
     };
@@ -128,56 +133,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       if (!isDragging || !canCloseWithSwipe) return;
 
       const diff = currentY - startY;
-
-      // Log para depuración
-      console.log("Touch end, diff:", diff);
-
-      // Si el arrastre fue suficiente, cerrar el modal
       if (diff > 100 && modal.scrollTop <= 5) {
-        // Animar explícitamente el cierre antes de llamar a onClose
         modal.style.transform = `translateY(${window.innerHeight}px)`;
         modal.style.transition = 'transform 0.3s ease-out';
 
-        // Llamar a onClose después de la animación
         setTimeout(() => {
-          console.log("Ejecutando onClose después de animación");
           onClose();
         }, 300);
       } else {
-        // Volver a la posición original con animación suave
         modal.style.transform = 'translateY(0)';
         modal.style.transition = 'transform 0.3s ease-out';
       }
 
-      // Resetear estados
       isDragging = false;
       setIsClosing(false);
     };
 
-    // Manejo de cancelación de toque (importante para casos edge)
-    const handleTouchCancel = () => {
-      if (isDragging) {
-        modal.style.transform = 'translateY(0)';
-        modal.style.transition = 'transform 0.3s ease-out';
-        setIsClosing(false);
-        isDragging = false;
-        console.log("Touch cancelado");
-      }
-    };
-
-    // Registrar eventos en la fase de captura para mayor prioridad
-    modal.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-    modal.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
-    modal.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
-    modal.addEventListener('touchcancel', handleTouchCancel, { passive: true, capture: true });
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      modal.removeEventListener('touchstart', handleTouchStart, { capture: true });
-      modal.removeEventListener('touchmove', handleTouchMove, { capture: true });
-      modal.removeEventListener('touchend', handleTouchEnd, { capture: true });
-      modal.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isOpen, onClose]);
+
 
   // Restablecer estados cuando se abre el modal
   useEffect(() => {
