@@ -1,7 +1,7 @@
 // src/components/cart/ProductDetailModal.tsx
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, Bookmark, ChevronDown, ChevronUp, Plus, Minus, Trash2, Heart } from 'lucide-react';
 
 // Interfaces para opciones de producto
@@ -62,13 +62,86 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const startY = useRef(0);
+  const currentY = useRef(0);
+  const [isClosing, setIsClosing] = useState(false);
 
-  // Valores y estados para el swipe
-  const y = useMotionValue(0);
-  const opacity = useTransform(y, [0, 200], [1, 0]);
-  const scale = useTransform(y, [0, 200], [1, 0.95]);
-  const [canSwipeDown, setCanSwipeDown] = useState(true);
-  const [isDragging, setIsDragging] = useState(false);
+  // AÑADIR ESTE NUEVO EFECTO
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const modal = modalRef.current;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      // Solo activar el swipe si estamos en la parte superior del contenido
+      if (modal.scrollTop <= 10) {
+        startY.current = e.touches[0].clientY;
+        console.log("Touch start detected at y:", startY.current);
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // Si no estamos en la parte superior, permitir scroll normal
+      if (modal.scrollTop > 10) return;
+
+      // Obtener la posición actual del toque
+      currentY.current = e.touches[0].clientY;
+
+      // Calcular la distancia arrastrada
+      const diff = currentY.current - startY.current;
+
+      // Solo permitir arrastrar hacia abajo (diff > 0)
+      if (diff > 0) {
+        // Aplicar transformación visual en tiempo real
+        modal.style.transform = `translateY(${diff}px)`;
+        modal.style.transition = 'none';
+
+        // Actualizar estado visual basado en la distancia
+        if (diff > 100) {
+          setIsClosing(true);
+        } else {
+          setIsClosing(false);
+        }
+
+        // Prevenir el scroll mientras se arrastra
+        e.preventDefault();
+      }
+    };
+
+    const handleTouchEnd = () => {
+      // Calcular la distancia final del arrastre
+      const diff = currentY.current - startY.current;
+
+      console.log("Touch end with diff:", diff);
+
+      // Si se arrastró suficiente hacia abajo, cerrar el modal
+      if (diff > 100 && modal.scrollTop <= 10) {
+        console.log("Closing modal based on swipe");
+        onClose();
+      } else {
+        // Si no, volver a la posición original con animación
+        modal.style.transform = 'translateY(0)';
+        modal.style.transition = 'transform 0.3s ease';
+      }
+
+      // Resetear estados
+      setIsClosing(false);
+      startY.current = 0;
+      currentY.current = 0;
+    };
+
+    // Registrar los eventos táctiles
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    modal.addEventListener('touchend', handleTouchEnd);
+
+    // Limpiar los eventos al desmontar
+    return () => {
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isOpen, onClose]);
 
   // Inicializar las opciones expandidas al abrir el modal
   useEffect(() => {
@@ -125,8 +198,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         setScrollPosition(position);
         setIsHeaderCompact(position > 120);
 
-        // Si estamos en la parte superior, permitimos swipe hacia abajo
-        setCanSwipeDown(position <= 10);
       }
     };
 
@@ -377,21 +448,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     );
   };
 
-  // Manejar el gesto de swipe para cerrar
-  const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    console.log("Drag end detected, offset Y:", info.offset.y, "can swipe:", canSwipeDown);
-    // Si el swipe hacia abajo es significativo, cerrar el modal
-    if (info.offset.y > 100 && canSwipeDown) {
-      console.log("Closing modal");
-      onClose();
-    } else {
-      // Si el swipe no es suficiente, volver a la posición inicial
-      console.log("Resetting position");
-      y.set(0);
-    }
 
-    setIsDragging(false);
-  };
 
   return (
     <AnimatePresence>
@@ -401,7 +458,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 backdrop-blur-sm"
-          onClick={onClose}
+
           style={{ opacity }}
         >
           <motion.div
@@ -415,20 +472,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             style={{
               boxShadow: '0px -4px 20px rgba(0, 0, 0, 0.1)',
               overscrollBehavior: 'contain',
-              y,
-              scale,
-              touchAction: 'pan-x' // Mejora el manejo táctil
+              //y,
+              //scale,
+              //touchAction: 'pan-x' // Mejora el manejo táctil
             }}
-            drag="y" // Simplificamos usando siempre drag vertical
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.2}
-            onDragStart={() => {
-              console.log("Drag start");
-              setIsDragging(true);
-            }}
-            onDragEnd={handleDragEnd}
-            dragDirectionLock
-            dragMomentum={false}
+            //drag="y" // Simplificamos usando siempre drag vertical
+            //dragConstraints={{ top: 0, bottom: 0 }}
+            //dragElastic={0.2}
+            //onDragStart={() => {
+              //console.log("Drag start");
+              //setIsDragging(true);
+            //}}
+            //onDragEnd={handleDragEnd}
+            //dragDirectionLock
+            //dragMomentum={false}
           >
             {/* Indicador de swipe */}
             <div className="w-full flex justify-center pt-2 pb-1">
@@ -791,7 +848,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                   </div>
 
                                   {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
-                                  {isDragging && canSwipeDown && (
+                                  {isClosing && canSwipeDown && (
                                     <div className="absolute inset-0 bg-black bg-opacity-5 pointer-events-none flex flex-col items-center justify-start pt-20">
                                       <ChevronDown size={40} className="text-white opacity-70" />
                                       <span className="text-white text-sm opacity-70 mt-2">Desliza para cerrar</span>
