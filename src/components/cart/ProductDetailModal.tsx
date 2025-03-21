@@ -71,88 +71,113 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     if (!isOpen || !modalRef.current) return;
 
     const modal = modalRef.current;
+    let startY = 0;
+    let currentY = 0;
+    let isDragging = false;
+    let canCloseWithSwipe = false;
 
     const handleTouchStart = (e: TouchEvent) => {
-      // Solo activar el swipe si estamos en la parte superior del contenido
-      if (modal.scrollTop <= 10) {
-        startY.current = e.touches[0].clientY;
-        console.log("Touch start detected at y:", startY.current);
+      // Permitir iniciar swipe si estamos en los primeros 50px (más generoso)
+      canCloseWithSwipe = modal.scrollTop <= 50;
+
+      if (canCloseWithSwipe) {
+        startY = e.touches[0].clientY;
+        isDragging = true;
+
+        // Log para depuración
+        console.log("Touch start en Y:", startY, "scrollTop:", modal.scrollTop);
       }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
-      // Si no estamos en la parte superior, permitir scroll normal
-      if (modal.scrollTop > 10) return;
+      if (!isDragging || !canCloseWithSwipe) return;
 
-      // Obtener la posición actual del toque
-      currentY.current = e.touches[0].clientY;
-
-      // Calcular la distancia arrastrada
-      const diff = currentY.current - startY.current;
+      currentY = e.touches[0].clientY;
+      const diff = currentY - startY;
 
       // Solo permitir arrastrar hacia abajo (diff > 0)
       if (diff > 0) {
-        // Aplicar transformación visual en tiempo real
-        modal.style.transform = `translateY(${diff}px)`;
-        modal.style.transition = 'none';
+        // Asegurarse de que el scroll del modal esté en la parte superior
+        if (modal.scrollTop <= 5) {
+          // Importante: preventDefault puede causar problemas en iOS
+          try {
+            e.preventDefault();
+          } catch (err) {
+            console.log("No se pudo prevenir el comportamiento predeterminado");
+          }
 
-        // Actualizar estado visual basado en la distancia
-        if (diff > 100) {
-          setIsClosing(true);
-        } else {
-          setIsClosing(false);
+          // Aplicar transformación con física más natural
+          const damping = 0.5; // Factor de amortiguación
+          const transformY = Math.pow(diff, damping);
+          modal.style.transform = `translateY(${transformY}px)`;
+          modal.style.transition = 'none';
+
+          // Feedback visual
+          if (diff > 100) {
+            setIsClosing(true);
+            // Log para depuración
+            console.log("Gesto suficiente para cerrar, diff:", diff);
+          } else {
+            setIsClosing(false);
+          }
         }
-
-        // Prevenir el scroll mientras se arrastra
-        e.preventDefault();
       }
     };
 
     const handleTouchEnd = () => {
-      // Calcular la distancia final del arrastre
-      const diff = currentY.current - startY.current;
+      if (!isDragging || !canCloseWithSwipe) return;
 
-      console.log("Touch end with diff:", diff);
+      const diff = currentY - startY;
 
-      // Si se arrastró suficiente hacia abajo, cerrar el modal
-      if (diff > 100 && modal.scrollTop <= 10) {
-        console.log("Closing modal based on swipe");
-        onClose();
+      // Log para depuración
+      console.log("Touch end, diff:", diff);
+
+      // Si el arrastre fue suficiente, cerrar el modal
+      if (diff > 100 && modal.scrollTop <= 5) {
+        // Animar explícitamente el cierre antes de llamar a onClose
+        modal.style.transform = `translateY(${window.innerHeight}px)`;
+        modal.style.transition = 'transform 0.3s ease-out';
+
+        // Llamar a onClose después de la animación
+        setTimeout(() => {
+          console.log("Ejecutando onClose después de animación");
+          onClose();
+        }, 300);
       } else {
-        // Si no, volver a la posición original con animación
+        // Volver a la posición original con animación suave
         modal.style.transform = 'translateY(0)';
-        modal.style.transition = 'transform 0.3s ease';
+        modal.style.transition = 'transform 0.3s ease-out';
       }
 
       // Resetear estados
+      isDragging = false;
       setIsClosing(false);
-      startY.current = 0;
-      currentY.current = 0;
     };
 
-    // Registrar los eventos táctiles
-    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
-    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
-    modal.addEventListener('touchend', handleTouchEnd);
+    // Manejo de cancelación de toque (importante para casos edge)
+    const handleTouchCancel = () => {
+      if (isDragging) {
+        modal.style.transform = 'translateY(0)';
+        modal.style.transition = 'transform 0.3s ease-out';
+        setIsClosing(false);
+        isDragging = false;
+        console.log("Touch cancelado");
+      }
+    };
 
-    // Limpiar los eventos al desmontar
+    // Registrar eventos en la fase de captura para mayor prioridad
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true, capture: true });
+    modal.addEventListener('touchcancel', handleTouchCancel, { passive: true, capture: true });
+
     return () => {
-      modal.removeEventListener('touchstart', handleTouchStart);
-      modal.removeEventListener('touchmove', handleTouchMove);
-      modal.removeEventListener('touchend', handleTouchEnd);
+      modal.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      modal.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      modal.removeEventListener('touchend', handleTouchEnd, { capture: true });
+      modal.removeEventListener('touchcancel', handleTouchCancel, { capture: true });
     };
   }, [isOpen, onClose]);
-
-  // Inicializar las opciones expandidas al abrir el modal
-  useEffect(() => {
-    if (isOpen && product.options) {
-      const initialExpandedState: Record<number, boolean> = {};
-      product.options.forEach(option => {
-        initialExpandedState[option.id] = true; // Por defecto todas expandidas
-      });
-      setExpandedOptions(initialExpandedState);
-    }
-  }, [isOpen, product.options]);
 
   // Restablecer estados cuando se abre el modal
   useEffect(() => {
@@ -849,9 +874,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                                   {/* Overlay de arrastre (muestra feedback visual durante el arrastre) */}
                                   {isClosing && (
-                                    <div className="absolute inset-0 bg-black bg-opacity-5 pointer-events-none flex flex-col items-center justify-start pt-20">
-                                      <ChevronDown size={40} className="text-white opacity-70" />
-                                      <span className="text-white text-sm opacity-70 mt-2">Desliza para cerrar</span>
+                                    <div className="absolute inset-0 bg-black bg-opacity-10 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
+                                      <ChevronDown size={48} className="text-white opacity-80" />
+                                      <span className="text-white text-base font-medium mt-2 opacity-80">
+                                        Suelta para cerrar
+                                      </span>
                                     </div>
                                   )}
                                 </motion.div>
