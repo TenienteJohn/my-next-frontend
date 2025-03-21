@@ -158,6 +158,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
       // Solo permitir arrastrar hacia abajo
       if (diff > 0) {
+          e.preventDefault();
         // Aplicar resistencia progresiva (se vuelve más difícil arrastrar a medida que se aleja)
         const resistance = 0.6;
         const transformY = Math.pow(diff, resistance);
@@ -175,7 +176,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       const diff = currentY.current - startY.current;
 
       // Si se ha arrastrado lo suficiente, cerrar el modal
-      if (diff > 100) {
+      if (diff > 65) {
         // Animar hacia abajo
         setDragDistance(window.innerHeight);
 
@@ -200,7 +201,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
     // Asignar eventos específicamente al handler de swipe
     swipeHandle.addEventListener('touchstart', handleTouchStart, { passive: true });
-    swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: true });
+    swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
     swipeHandle.addEventListener('touchend', handleTouchEnd, { passive: true });
     swipeHandle.addEventListener('touchcancel', handleTouchCancel, { passive: true });
 
@@ -480,8 +481,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Área dedicada para el swipe (70px de altura) */}
             <div
               ref={swipeHandleRef}
-              className="absolute top-0 left-0 w-full h-16 z-40"
-              style={{ cursor: 'grab' }}
+              className="absolute top-0 left-0 w-full h-24 z-60 pointer-events-auto"
+              style={{ cursor: 'grab', touchAction: 'none' }}
             >
               {/* Indicador de swipe (la barrita) */}
               <div className="w-full flex justify-center pt-2 pb-1">
