@@ -86,6 +86,15 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
   }, []);
 
   useEffect(() => {
+    console.log('⭐⭐⭐ ProductDetailModal renderizado ⭐⭐⭐');
+    if (isOpen) {
+      alert('Este es el componente ProductDetailModal - el modificado');
+    }
+  }, [isOpen]);
+
+
+
+  useEffect(() => {
     if (!isOpen) return;
 
     // Al abrir, guardar la posición actual del scroll
@@ -574,12 +583,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black bg-opacity-50 backdrop-blur-sm"
-          onClick={onClose}
-        >
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-[1px]"
+                  style={{
+                    background: 'rgba(255,255,255,0.05)'
+                  }}
+                  onClick={onClose}
+                >
           <motion.div
             ref={modalRef}
             initial={{ y: "100%" }}
