@@ -186,7 +186,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         modalRef.current.scrollTop = 0;
       }
     }
-  }, [isOpen, product.id, product.options, y]);
+  }, [isOpen, product.id, product.options]);
 
   // Detectar scroll para cambiar header y estado de swipe
   useEffect(() => {
