@@ -298,7 +298,18 @@ export const CartModule: React.FC<CartModuleProps> = ({
   };
 
   // Función para manejar la selección de opciones
+  // Modificación en CartModule.tsx - Función handleOptionSelect
+  // Añadir verificación de etiquetas que desactivan la selección
+
   const handleOptionSelect = (option: ProductOption, item: OptionItem) => {
+    // Verificar si el ítem tiene una etiqueta que desactiva la selección (ej. "Agotado")
+    const hasDisableTag = item.tags?.some(tag => tag.disableSelection);
+
+    if (hasDisableTag) {
+      // No permitir selección y posiblemente mostrar un mensaje
+      return;
+    }
+
     setSelectedOptions(prevSelected => {
       const updatedOptions = [...prevSelected];
       const optionIndex = updatedOptions.findIndex(opt => opt.option_id === option.id);
@@ -605,18 +616,19 @@ export const CartModule: React.FC<CartModuleProps> = ({
                                 opt.selected_items.some(i => i.item_id === item.id)
                               );
 
+                              // En la sección donde se renderizan los ítems de opciones en CartModule.tsx
                               return (
                                 <div
                                   key={item.id}
                                   className={`p-3 border rounded-xl flex justify-between items-center cursor-pointer ${
                                     isSelected ? 'border-black bg-gray-50' : 'border-gray-200'
-                                  }`}
+                                  } ${item.tags?.some(tag => tag.disableSelection) ? 'opacity-60 cursor-not-allowed' : ''}`}
                                   onClick={() => handleOptionSelect(option, item)}
                                 >
                                   <div className="flex items-center">
                                     {/* Miniatura de imagen */}
-                                    {item.image_url ? (
-                                      <div className="relative w-12 h-12 rounded-lg overflow-hidden mr-3">
+                                    <div className="relative w-12 h-12 rounded-lg overflow-hidden mr-3">
+                                      {item.image_url ? (
                                         <Image
                                           src={item.image_url}
                                           alt={item.name}
@@ -624,26 +636,56 @@ export const CartModule: React.FC<CartModuleProps> = ({
                                           style={{ objectFit: 'cover' }}
                                           sizes="48px"
                                         />
-                                      </div>
-                                    ) : (
-                                      <div className="w-12 h-12 bg-gray-100 rounded-lg mr-3 flex items-center justify-center">
-                                        <svg
-                                          xmlns="http://www.w3.org/2000/svg"
-                                          className="h-6 w-6 text-gray-400"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth={1}
-                                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                                          />
-                                        </svg>
-                                      </div>
-                                    )}
-                                    <span className="font-medium">{item.name}</span>
+                                      ) : (
+                                        <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                                          <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="h-6 w-6 text-gray-400"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              strokeWidth={1}
+                                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                            />
+                                          </svg>
+                                        </div>
+                                      )}
+
+                                      {/* Etiquetas sobre la imagen */}
+                                      {item.tags && item.tags.length > 0 && (
+                                        <div className="absolute top-0 right-0">
+                                          {item.tags
+                                            .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+                                            .slice(0, 2) // Mostrar máximo 2 etiquetas
+                                            .map(tag => (
+                                              <Tag
+                                                key={tag.id}
+                                                name={tag.name}
+                                                color={tag.color}
+                                                textColor={tag.textColor}
+                                                discount={tag.discount}
+                                                size="sm"
+                                                className="m-1"
+                                              />
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <div>
+                                      <span className="font-medium">{item.name}</span>
+
+                                      {/* Etiqueta de "Sugerido" si corresponde */}
+                                      {item.tags?.some(tag => tag.isRecommended) && (
+                                        <span className="ml-2 inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full">
+                                          Sugerido
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
 
                                   <div className="flex items-center">
@@ -655,7 +697,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
 
                                     {/* Botón de radio personalizado */}
                                     {option.multiple ? (
-                                      <div className={`w-6 h-6 border ${isSelected ? 'bg-black border-black' : 'border-gray-300'} rounded-md flex items-center justify-center`}>
+                                      <div className={`w-6 h-6 border ${isSelected ? 'bg-black border-black' : 'border-gray-300'} rounded-md flex items-center justify-center ${item.tags?.some(tag => tag.disableSelection) ? 'opacity-50' : ''}`}>
                                         {isSelected && (
                                           <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
@@ -663,7 +705,7 @@ export const CartModule: React.FC<CartModuleProps> = ({
                                         )}
                                       </div>
                                     ) : (
-                                      <div className={`w-6 h-6 border ${isSelected ? 'border-2 border-black' : 'border-gray-300'} rounded-full flex items-center justify-center`}>
+                                      <div className={`w-6 h-6 border ${isSelected ? 'border-2 border-black' : 'border-gray-300'} rounded-full flex items-center justify-center ${item.tags?.some(tag => tag.disableSelection) ? 'opacity-50' : ''}`}>
                                         {isSelected && (
                                           <div className="w-3 h-3 bg-black rounded-full"></div>
                                         )}
