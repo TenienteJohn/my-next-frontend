@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { Tag as TagIcon } from 'lucide-react'; // Añadido ícono de etiqueta
 
 export default function OwnerConfigPanel() {
   const [commerce, setCommerce] = useState<any>(null);
@@ -157,6 +158,30 @@ export default function OwnerConfigPanel() {
                     className="w-full py-2 bg-green-500 text-white text-center rounded-md hover:bg-green-600 transition cursor-pointer"
                   >
                     Gestionar Productos
+                  </motion.div>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Nueva Tarjeta para Etiquetas */}
+            <Card>
+              <CardHeader className="bg-gradient-to-r from-amber-500 to-amber-600 text-white">
+                <CardTitle className="flex items-center">
+                  <TagIcon className="mr-2" size={20} />
+                  Etiquetas
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <p className="text-gray-600 mb-4">
+                  Gestiona etiquetas para destacar productos, opciones e ítems.
+                </p>
+                <Link href="/config/tags" passHref>
+                  <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-2 bg-amber-500 text-white text-center rounded-md hover:bg-amber-600 transition cursor-pointer"
+                  >
+                    Gestionar Etiquetas
                   </motion.div>
                 </Link>
               </CardContent>
