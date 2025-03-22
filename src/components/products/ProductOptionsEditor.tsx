@@ -5,25 +5,223 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { ChevronDown, ChevronUp, Plus, X, Trash2, Edit, Check, Upload, Image as ImageIcon } from 'lucide-react';
+import { ChevronDown, ChevronUp, Plus, X, Trash2, Edit, Check, Upload, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
 import Image from 'next/image';
+import { OptionItem, ProductOption } from '@/types/product-options';
+import { Tag } from '@/types/tags';
+import { Tag as TagComponent } from '@/components/ui/Tag';
 
-interface OptionItem {
-  id?: number;
-  name: string;
-  price_addition: number;
-  available: boolean;
-  image_url?: string;
-}
+// Componente selector de etiquetas
+const TagSelector = ({ type, selectedTags = [], onChange }) => {
+  const [availableTags, setAvailableTags] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-interface ProductOption {
-  id?: number;
-  name: string;
-  required: boolean;
-  multiple: boolean;
-  max_selections?: number;
-  items: OptionItem[];
-}
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No se encontró token de autenticación');
+        }
+
+        const response = await axios.get('/api/tags', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        // Filtrar etiquetas por tipo
+        const filteredTags = response.data.filter(tag => tag.type === type);
+        setAvailableTags(filteredTags);
+      } catch (err) {
+        console.error('Error al cargar etiquetas:', err);
+        setError('Error al cargar etiquetas');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTags();
+  }, [type]);
+
+  const isTagSelected = (tagId) => {
+    return selectedTags.some(tag => tag.id === tagId);
+  };
+
+  const handleToggleTag = (tag) => {
+    if (isTagSelected(tag.id)) {
+      // Eliminar etiqueta si ya está seleccionada
+      onChange(selectedTags.filter(t => t.id !== tag.id));
+    } else {
+      // Agregar etiqueta si no está seleccionada
+      onChange([...selectedTags, tag]);
+    }
+  };
+
+  if (loading) {
+    return <div className="text-gray-500 text-sm">Cargando etiquetas...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-sm">{error}</div>;
+  }
+
+  if (availableTags.length === 0) {
+    return (
+      <div className="text-gray-500 text-sm">
+        No hay etiquetas disponibles. <a href="/admin/tags" className="text-blue-500 hover:underline">Crear etiquetas</a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Etiquetas ({type === 'option' ? 'Opción' : 'Ítem'})
+      </label>
+      <div className="flex flex-wrap gap-2 p-2 border rounded bg-gray-50">
+        {availableTags.map(tag => (
+          <button
+            key={tag.id}
+            type="button"
+            onClick={() => handleToggleTag(tag)}
+            className={`flex items-center rounded-md ${
+              isTagSelected(tag.id) ? 'ring-2 ring-offset-1 ring-blue-500' : ''
+            }`}
+            title={isTagSelected(tag.id) ? "Quitar etiqueta" : "Añadir etiqueta"}
+          >
+            <TagComponent
+              name={tag.name}
+              color={tag.color}
+              textColor={tag.textColor}
+              size="sm"
+            />
+            {isTagSelected(tag.id) && (
+              <div className="bg-white rounded-full ml-1 -mr-1 w-4 h-4 flex items-center justify-center">
+                <Check size={12} className="text-green-600" />
+              </div>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Funciones para gestionar etiquetas
+const assignTagToOption = async (optionId, tagId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.post(
+      `/api/tags/assign-option/${optionId}/${tagId}`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al asignar etiqueta a opción:', error);
+    throw error;
+  }
+};
+
+const removeTagFromOption = async (optionId, tagId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.delete(
+      `/api/tags/assign-option/${optionId}/${tagId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al quitar etiqueta de opción:', error);
+    throw error;
+  }
+};
+
+const assignTagToItem = async (itemId, tagId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.post(
+      `/api/tags/assign-item/${itemId}/${tagId}`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al asignar etiqueta a ítem:', error);
+    throw error;
+  }
+};
+
+const removeTagFromItem = async (itemId, tagId) => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.delete(
+      `/api/tags/assign-item/${itemId}/${tagId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al quitar etiqueta de ítem:', error);
+    throw error;
+  }
+};
+
+const updateTagAssignments = async (
+  entityId,
+  currentTags,
+  newTags,
+  entityType
+) => {
+  try {
+    // Determinar qué etiquetas hay que añadir
+    const tagsToAdd = newTags.filter(id => !currentTags.includes(id));
+
+    // Determinar qué etiquetas hay que quitar
+    const tagsToRemove = currentTags.filter(id => !newTags.includes(id));
+
+    // Realizar las operaciones
+    const operations = [];
+
+    if (entityType === 'option') {
+      for (const tagId of tagsToAdd) {
+        operations.push(assignTagToOption(entityId, tagId));
+      }
+
+      for (const tagId of tagsToRemove) {
+        operations.push(removeTagFromOption(entityId, tagId));
+      }
+    } else { // 'item'
+      for (const tagId of tagsToAdd) {
+        operations.push(assignTagToItem(entityId, tagId));
+      }
+
+      for (const tagId of tagsToRemove) {
+        operations.push(removeTagFromItem(entityId, tagId));
+      }
+    }
+
+    // Ejecutar todas las operaciones
+    await Promise.all(operations);
+  } catch (error) {
+    console.error(`Error al actualizar etiquetas de ${entityType}:`, error);
+    throw error;
+  }
+};
 
 interface ProductOptionsEditorProps {
   productId: number;
@@ -38,15 +236,21 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
   const [editingOption, setEditingOption] = useState<ProductOption | null>(null);
   const [expandedOptions, setExpandedOptions] = useState<{[key: number]: boolean}>({});
   const [newOption, setNewOption] = useState<ProductOption>({
+    id: 0,
+    product_id: productId,
     name: '',
     required: false,
     multiple: false,
     items: [],
+    tags: [], // Inicializar tags vacío
   });
   const [newItem, setNewItem] = useState<OptionItem>({
+    id: 0,
+    option_id: 0,
     name: '',
     price_addition: 0,
     available: true,
+    tags: [], // Inicializar tags vacío
   });
 
   // Estados para manejo de imágenes
@@ -120,21 +324,45 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
+      // Guardar etiquetas temporalmente
+      const optionTags = [...(newOption.tags || [])];
+
+      // Eliminar las etiquetas del objeto que enviamos a la API actual (para compatibilidad)
+      const optionToSave = { ...newOption, product_id: productId };
+      delete optionToSave.tags;
+
+      // Crear la opción sin etiquetas
       const response = await axios.post(
         "/api/product-options",
-        { ...newOption, product_id: productId },
+        optionToSave,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      const optionId = response.data.id;
+
+      // Si hay etiquetas seleccionadas, asignarlas a la opción
+      if (optionTags.length > 0) {
+        try {
+          const tagIds = optionTags.map(tag => tag.id);
+          await updateTagAssignments(optionId, [], tagIds, 'option');
+        } catch (tagError) {
+          console.error('Error al asignar etiquetas a opción:', tagError);
+          // No interrumpimos el proceso principal si falla la asignación de etiquetas
+        }
+      }
 
       // Refrescar la lista de opciones
       await fetchOptions();
 
       // Reiniciar el formulario
       setNewOption({
+        id: 0,
+        product_id: productId,
         name: '',
         required: false,
         multiple: false,
         items: [],
+        tags: [], // Reiniciar tags
       });
       setShowAddForm(false);
 
@@ -155,18 +383,33 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
   // Función para añadir items directamente a una opción
   const addItemDirectly = async (optionId, itemData) => {
     try {
+      // Extraer etiquetas si existen
+      const tags = itemData.tags || [];
+
+      // Crear una copia sin etiquetas para la API actual
+      const itemDataWithoutTags = { ...itemData };
+      delete itemDataWithoutTags.tags;
+
       // Obtener el token de autenticación
       const token = localStorage.getItem('token');
       if (!token) {
         throw new Error('No se encontró token de autenticación');
       }
 
-      // Hacer la petición POST para agregar el ítem
+      // Hacer la petición POST para agregar el ítem (sin etiquetas)
       const response = await axios.post(
-        `/api/product-options/${optionId}/items`,  // URL con el ID de la opción
-        itemData,                                  // Datos del ítem (nombre, precio, etc.)
-        { headers: { Authorization: `Bearer ${token}` } }  // Cabecera de autenticación
+        `/api/product-options/${optionId}/items`,
+        itemDataWithoutTags,
+        { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      // Si hay etiquetas y el ítem se creó correctamente
+      if (tags.length > 0 && response.data.id) {
+        const itemId = response.data.id;
+        const tagIds = tags.map(tag => tag.id);
+
+        await updateTagAssignments(itemId, [], tagIds, 'item');
+      }
 
       // Registrar el resultado en la consola
       console.log('Ítem agregado directamente:', response.data);
@@ -203,6 +446,9 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
+      // Guardar las etiquetas temporalmente
+      const optionTags = [...(editingOption.tags || [])];
+
       // Separar ítems existentes de ítems nuevos
       const existingItems = editingOption.items.filter(item => item.id);
       const newItems = editingOption.items.filter(item => !item.id);
@@ -210,13 +456,20 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
       console.log('Ítems existentes:', existingItems);
       console.log('Ítems nuevos:', newItems);
 
-      // 1. Primero actualizar la opción con los ítems existentes
+      // Crear copia sin etiquetas para compatibilidad con API actual
+      const existingItemsWithoutTags = existingItems.map(item => {
+        const itemCopy = { ...item };
+        delete itemCopy.tags;
+        return itemCopy;
+      });
+
+      // 1. Primero actualizar la opción con los ítems existentes (sin etiquetas)
       const optionData = {
         name: editingOption.name,
         required: editingOption.required,
         multiple: editingOption.multiple,
         max_selections: editingOption.max_selections,
-        items: existingItems
+        items: existingItemsWithoutTags
       };
 
       console.log('1. Actualizando opción con ítems existentes:', optionData);
@@ -229,7 +482,25 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
 
       console.log('Opción actualizada:', updateResponse.data);
 
-      // 2. Luego agregar cada ítem nuevo individualmente
+      // 2. Actualizar etiquetas de la opción
+      const originalOption = options.find(opt => opt.id === editingOption.id);
+      const originalTagIds = (originalOption?.tags || []).map(tag => tag.id);
+      const newTagIds = optionTags.map(tag => tag.id);
+
+      await updateTagAssignments(editingOption.id, originalTagIds, newTagIds, 'option');
+
+      // 3. Actualizar etiquetas de ítems existentes
+      for (const item of existingItems) {
+        if (item.id && item.tags) {
+          const originalItem = originalOption?.items.find(i => i.id === item.id);
+          const originalItemTagIds = (originalItem?.tags || []).map(tag => tag.id);
+          const newItemTagIds = item.tags.map(tag => tag.id);
+
+          await updateTagAssignments(item.id, originalItemTagIds, newItemTagIds, 'item');
+        }
+      }
+
+      // 4. Luego agregar cada ítem nuevo individualmente
       if (newItems.length > 0) {
         console.log('2. Agregando ítems nuevos individualmente:', newItems);
 
@@ -238,7 +509,8 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
             name: newItem.name,
             price_addition: Number(newItem.price_addition) || 0,
             available: newItem.available !== false,
-            image_url: newItem.image_url || null
+            image_url: newItem.image_url || null,
+            tags: newItem.tags || [] // Incluir etiquetas para el nuevo ítem
           };
 
           console.log(`Agregando ítem: ${newItem.name}`);
@@ -246,18 +518,18 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         }
       }
 
-      // 3. Refrescar opciones
+      // 5. Refrescar opciones
       console.log('3. Refrescando lista de opciones');
       await fetchOptions();
 
-      // 4. Reiniciar el formulario de edición
+      // 6. Reiniciar el formulario de edición
       setEditingOption(null);
 
       if (onUpdateComplete) {
         onUpdateComplete();
       }
 
-      // 5. Mostrar mensaje de éxito
+      // 7. Mostrar mensaje de éxito
       showSuccessMessage('Opción actualizada correctamente');
 
     } catch (err) {
@@ -311,11 +583,28 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
+      // Si hay etiquetas en el ítem actualizado, manejarlas por separado
+      const itemTags = updatedItem.tags || [];
+
+      // Crear copia sin etiquetas para compatibilidad con API actual
+      const updatedItemWithoutTags = { ...updatedItem };
+      delete updatedItemWithoutTags.tags;
+
       await axios.put(
         `/api/product-options/${optionId}/items/${itemId}`,
-        updatedItem,
+        updatedItemWithoutTags,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      // Si hay etiquetas, actualizar asignaciones
+      if (itemTags.length > 0) {
+        const option = options.find(opt => opt.id === optionId);
+        const originalItem = option?.items.find(item => item.id === itemId);
+        const originalTagIds = (originalItem?.tags || []).map(tag => tag.id);
+        const newTagIds = itemTags.map(tag => tag.id);
+
+        await updateTagAssignments(itemId, originalTagIds, newTagIds, 'item');
+      }
 
       // Refrescar opciones después de la actualización
       await fetchOptions();
@@ -378,9 +667,12 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
 
     // Reiniciar el formulario de item
     setNewItem({
+      id: 0,
+      option_id: 0,
       name: '',
       price_addition: 0,
       available: true,
+      tags: [], // Reiniciar tags
     });
   };
 
@@ -399,10 +691,13 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
     // Crear el objeto de ítem con la estructura correcta
     const itemToAdd = {
       // Sin ID para que el backend lo identifique como nuevo
+      id: 0,
+      option_id: editingOption.id,
       name: newItem.name.trim(),
       price_addition: Number(newItem.price_addition) || 0,
       available: newItem.available !== false,
-      image_url: newItem.image_url || null
+      image_url: newItem.image_url || null,
+      tags: newItem.tags || [] // Incluir etiquetas
     };
 
     // Actualizar el estado de editingOption
@@ -415,9 +710,12 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
 
     // Reiniciar el formulario de item
     setNewItem({
+      id: 0,
+      option_id: 0,
       name: '',
       price_addition: 0,
       available: true,
+      tags: [], // Reiniciar tags
     });
   };
 
@@ -462,11 +760,28 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
         throw new Error('No se encontró token de autenticación');
       }
 
+      // Si hay etiquetas, manejarlas por separado
+      const itemTags = item.tags || [];
+
+      // Crear copia sin etiquetas para compatibilidad con API actual
+      const itemWithoutTags = { ...item };
+      delete itemWithoutTags.tags;
+
       await axios.put(
         `/api/product-options/${optionId}/items/${item.id}`,
-        item,
+        itemWithoutTags,
         { headers: { Authorization: `Bearer ${token}` } }
       );
+
+      // Actualizar etiquetas si existen
+      if (itemTags.length > 0) {
+        const option = options.find(opt => opt.id === optionId);
+        const originalItem = option?.items.find(i => i.id === item.id);
+        const originalTagIds = (originalItem?.tags || []).map(tag => tag.id);
+        const newTagIds = itemTags.map(tag => tag.id);
+
+        await updateTagAssignments(item.id, originalTagIds, newTagIds, 'item');
+      }
 
       await fetchOptions();
 
@@ -557,609 +872,705 @@ export default function ProductOptionsEditor({ productId, onUpdateComplete }: Pr
   };
 
   if (loading && options.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
-        <p className="text-gray-600">Cargando opciones...</p>
-      </div>
-    );
-  }
-
-  const showSuccessMessage = (message) => {
-    const successMsg = document.createElement('div');
-    successMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg z-50 flex items-center';
-
-    const checkIcon = document.createElement('span');
-    checkIcon.className = 'mr-2';
-    checkIcon.innerHTML = '✓';
-    successMsg.appendChild(checkIcon);
-
-    const textNode = document.createTextNode(message);
-    successMsg.appendChild(textNode);
-
-    document.body.appendChild(successMsg);
-
-    setTimeout(() => {
-      successMsg.classList.add('opacity-0', 'transition-opacity', 'duration-500');
-      setTimeout(() => document.body.removeChild(successMsg), 500);
-    }, 2500);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Input de archivo oculto para subir imágenes */}
-      <input
-        type="file"
-        ref={fileInputRef}
-        className="hidden"
-        accept="image/*"
-        onChange={handleFileChange}
-      />
-
-      <div className="flex justify-between items-center">
-        <h3 className="text-xl font-bold text-gray-900">Opciones del Producto</h3>
-        <Button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-        >
-          {showAddForm ? <X size={18} /> : <Plus size={18} />}
-          {showAddForm ? 'Cancelar' : 'Agregar Opción'}
-        </Button>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+      return (
+        <div className="text-center py-8">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500 mb-2"></div>
+          <p className="text-gray-600">Cargando opciones...</p>
         </div>
-      )}
+      );
+    }
 
-      {/* Formulario para agregar nueva opción */}
-      <AnimatePresence>
-        {showAddForm && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
+    const showSuccessMessage = (message) => {
+      const successMsg = document.createElement('div');
+      successMsg.className = 'fixed bottom-4 right-4 bg-green-500 text-white p-3 rounded shadow-lg z-50 flex items-center';
+
+      const checkIcon = document.createElement('span');
+      checkIcon.className = 'mr-2';
+      checkIcon.innerHTML = '✓';
+      successMsg.appendChild(checkIcon);
+
+      const textNode = document.createTextNode(message);
+      successMsg.appendChild(textNode);
+
+      document.body.appendChild(successMsg);
+
+      setTimeout(() => {
+        successMsg.classList.add('opacity-0', 'transition-opacity', 'duration-500');
+        setTimeout(() => document.body.removeChild(successMsg), 500);
+      }, 2500);
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Input de archivo oculto para subir imágenes */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*"
+          onChange={handleFileChange}
+        />
+
+        <div className="flex justify-between items-center">
+          <h3 className="text-xl font-bold text-gray-900">Opciones del Producto</h3>
+          <Button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
           >
-            <Card className="border-2 border-blue-200">
-              <CardContent className="pt-6">
-                <h4 className="font-medium mb-4 text-lg text-blue-600">Nueva Opción</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre *
-                    </label>
-                    <input
-                      type="text"
-                      value={newOption.name}
-                      onChange={(e) => setNewOption({ ...newOption, name: e.target.value })}
-                      className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Ej: Tamaño, Sabor, etc."
+            {showAddForm ? <X size={18} /> : <Plus size={18} />}
+            {showAddForm ? 'Cancelar' : 'Agregar Opción'}
+          </Button>
+        </div>
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
+        {/* Formulario para agregar nueva opción */}
+        <AnimatePresence>
+          {showAddForm && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <Card className="border-2 border-blue-200">
+                <CardContent className="pt-6">
+                  <h4 className="font-medium mb-4 text-lg text-blue-600">Nueva Opción</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre *
+                      </label>
+                      <input
+                        type="text"
+                        value={newOption.name}
+                        onChange={(e) => setNewOption({ ...newOption, name: e.target.value })}
+                        className="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Ej: Tamaño, Sabor, etc."
+                      />
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={newOption.required}
+                          onChange={(e) => setNewOption({ ...newOption, required: e.target.checked })}
+                          className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
+                        />
+                        <span className="text-sm">Obligatorio</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={newOption.multiple}
+                          onChange={(e) => setNewOption({ ...newOption, multiple: e.target.checked })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Selección múltiple</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {newOption.multiple && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Máximo de selecciones
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newOption.max_selections || ''}
+                        onChange={(e) => setNewOption({ ...newOption, max_selections: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className="w-32 p-2 border rounded"
+                        placeholder="Sin límite"
+                      />
+                      <span className="text-xs text-gray-500 ml-2">Deja en blanco para no limitar</span>
+                    </div>
+                  )}
+
+                  {/* Selector de etiquetas para la opción */}
+                  <div className="mt-4 mb-4">
+                    <TagSelector
+                      type="option"
+                      selectedTags={newOption.tags || []}
+                      onChange={(tags) => setNewOption({ ...newOption, tags })}
                     />
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={newOption.required}
-                        onChange={(e) => setNewOption({ ...newOption, required: e.target.checked })}
-                        className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 rounded"
-                      />
-                      <span className="text-sm">Obligatorio</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={newOption.multiple}
-                        onChange={(e) => setNewOption({ ...newOption, multiple: e.target.checked })}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">Selección múltiple</span>
-                    </label>
-                  </div>
-                </div>
 
-                {newOption.multiple && (
+                  <h5 className="font-medium mt-6 mb-4">Agregar Items</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre *
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.name}
+                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                        className="w-full p-2 border rounded"
+                        placeholder="Ej: Grande, Pequeño, etc."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Precio adicional
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newItem.price_addition || 0}
+                        onChange={(e) => setNewItem({ ...newItem, price_addition: parseFloat(e.target.value) || 0 })}
+                        className="w-full p-2 border rounded"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        onClick={addItemToNewOption}
+                        className="bg-green-500 hover:bg-green-600 text-white flex items-center"
+                      >
+                        <Plus size={18} className="mr-1" />
+                        Agregar Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Selector de etiquetas para el ítem */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Máximo de selecciones
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={newOption.max_selections || ''}
-                      onChange={(e) => setNewOption({ ...newOption, max_selections: e.target.value ? parseInt(e.target.value) : undefined })}
-                      className="w-32 p-2 border rounded"
-                      placeholder="Sin límite"
+                    <TagSelector
+                      type="item"
+                      selectedTags={newItem.tags || []}
+                      onChange={(tags) => setNewItem({ ...newItem, tags })}
                     />
-                    <span className="text-xs text-gray-500 ml-2">Deja en blanco para no limitar</span>
                   </div>
-                )}
 
-                <h5 className="font-medium mt-6 mb-4">Agregar Items</h5>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre *
-                    </label>
-                    <input
-                      type="text"
-                      value={newItem.name}
-                      onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                      className="w-full p-2 border rounded"
-                      placeholder="Ej: Grande, Pequeño, etc."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Precio adicional
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={newItem.price_addition || 0}
-                      onChange={(e) => setNewItem({ ...newItem, price_addition: parseFloat(e.target.value) || 0 })}
-                      className="w-full p-2 border rounded"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="flex items-end">
+                  {/* Lista de items agregados */}
+                  {newOption.items.length > 0 && (
+                    <div className="mt-4 mb-6">
+                      <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
+                      <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
+                        <ul className="divide-y divide-gray-200">
+                          {newOption.items.map((item, index) => (
+                            <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
+                              <div>
+                                <span className="font-medium">{item.name}</span>
+                                {item.price_addition > 0 && (
+                                  <span className="ml-2 text-gray-600">
+                                    (+${item.price_addition.toFixed(2)})
+                                  </span>
+                                )}
+                                {/* Mostrar etiquetas del ítem */}
+                                {item.tags && item.tags.length > 0 && (
+                                  <div className="flex mt-1 gap-1">
+                                    {item.tags.map(tag => (
+                                      <TagComponent
+                                        key={tag.id}
+                                        name={tag.name}
+                                        color={tag.color}
+                                        textColor={tag.textColor}
+                                        size="sm"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <button
+                                onClick={() => removeItemFromNewOption(index)}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-2 mt-4">
                     <Button
-                      onClick={addItemToNewOption}
-                      className="bg-green-500 hover:bg-green-600 text-white flex items-center"
+                      onClick={() => setShowAddForm(false)}
+                      variant="outline"
                     >
-                      <Plus size={18} className="mr-1" />
-                      Agregar Item
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleAddOption}
+                      className="bg-blue-500 hover:bg-blue-600 text-white flex items-center"
+                      disabled={loading || !newOption.name || newOption.items.length === 0}
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={18} className="mr-1" />
+                          Guardar Opción
+                        </>
+                      )}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Formulario para editar opción */}
+        <AnimatePresence>
+          {editingOption && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <Card className="border-2 border-emerald-200">
+                <CardContent className="pt-6">
+                  <h4 className="font-medium mb-4 text-lg text-emerald-600">Editar Opción</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre *
+                      </label>
+                      <input
+                        type="text"
+                        value={editingOption.name}
+                        onChange={(e) => setEditingOption({ ...editingOption, name: e.target.value })}
+                        className="w-full p-2 border rounded"
+                        placeholder="Ej: Tamaño, Sabor, etc."
+                      />
+                    </div>
+                    <div className="flex items-center space-x-4">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingOption.required}
+                          onChange={(e) => setEditingOption({ ...editingOption, required: e.target.checked })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Obligatorio</span>
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={editingOption.multiple}
+                          onChange={(e) => setEditingOption({ ...editingOption, multiple: e.target.checked })}
+                          className="mr-2"
+                        />
+                        <span className="text-sm">Selección múltiple</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {editingOption.multiple && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Máximo de selecciones
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={editingOption.max_selections || ''}
+                        onChange={(e) => setEditingOption({ ...editingOption, max_selections: e.target.value ? parseInt(e.target.value) : undefined })}
+                        className="w-32 p-2 border rounded"
+                        placeholder="Sin límite"
+                      />
+                      <span className="text-xs text-gray-500 ml-2">Deja en blanco para no limitar</span>
+                    </div>
+                  )}
+
+                  {/* Selector de etiquetas para la opción en edición */}
+                  <div className="mb-4">
+                    <TagSelector
+                      type="option"
+                      selectedTags={editingOption.tags || []}
+                      onChange={(tags) => setEditingOption({ ...editingOption, tags })}
+                    />
+                  </div>
+
+                  <h5 className="font-medium mt-6 mb-4">Agregar Items</h5>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nombre *
+                      </label>
+                      <input
+                        type="text"
+                        value={newItem.name}
+                        onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                        className="w-full p-2 border rounded"
+                        placeholder="Ej: Grande, Pequeño, etc."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Precio adicional
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newItem.price_addition || 0}
+                        onChange={(e) => setNewItem({ ...newItem, price_addition: parseFloat(e.target.value) || 0 })}
+                        className="w-full p-2 border rounded"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button
+                        onClick={addItemToEditingOption}
+                        className="bg-green-500 hover:bg-green-600 text-white flex items-center"
+                      >
+                        <Plus size={18} className="mr-1" />
+                        Agregar Item
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Selector de etiquetas para nuevos ítems */}
+                  <div className="mb-4">
+                    <TagSelector
+                      type="item"
+                      selectedTags={newItem.tags || []}
+                      onChange={(tags) => setNewItem({ ...newItem, tags })}
+                    />
+                  </div>
+
+                  {/* Lista de items de la opción que se está editando */}
+                  {editingOption.items.length > 0 && (
+                    <div className="mt-4 mb-6">
+                      <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
+                      <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
+                        <ul className="divide-y divide-gray-200">
+                          {editingOption.items.map((item, index) => (
+                            <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
+                              <div className="flex items-center">
+                                {/* Miniatura de imagen */}
+                                {item.image_url ? (
+                                  <div className="relative w-10 h-10 rounded overflow-hidden mr-3 border border-gray-200">
+                                    <Image
+                                      src={item.image_url}
+                                      alt={item.name}
+                                      fill
+                                      style={{ objectFit: 'cover' }}
+                                      sizes="40px"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="w-10 h-10 bg-gray-100 rounded mr-3 flex items-center justify-center border border-gray-200">
+                                    <ImageIcon size={16} className="text-gray-400" />
+                                  </div>
+                                )}
+
+                                <div>
+                                  <span className="font-medium">{item.name}</span>
+                                  {item.price_addition > 0 && (
+                                    <span className="ml-2 text-gray-600">
+                                      (+${item.price_addition.toFixed(2)})
+                                    </span>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      const newAvailability = !item.available;
+                                      updateItemInEditingOption(index, { available: newAvailability });
+                                    }}
+                                    className={`ml-3 px-2 py-1 text-xs rounded flex items-center ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
+                                  >
+                                    {item.available ? (
+                                      <>
+                                        <Check size={14} className="mr-1" />
+                                        Disponible
+                                      </>
+                                    ) : (
+                                      <>
+                                        <X size={14} className="mr-1" />
+                                        No disponible
+                                      </>
+                                    )}
+                                  </button>
+
+                                  {/* Mostrar etiquetas del ítem */}
+                                  {item.tags && item.tags.length > 0 && (
+                                    <div className="flex mt-1 gap-1">
+                                      {item.tags.map(tag => (
+                                        <TagComponent
+                                          key={tag.id}
+                                          name={tag.name}
+                                          color={tag.color}
+                                          textColor={tag.textColor}
+                                          size="sm"
+                                        />
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex space-x-2">
+                                {/* Botón para subir imagen */}
+                                {item.id && (
+                                  <button
+                                    onClick={() => item.id && editingOption?.id && triggerFileInput(editingOption.id, item.id)}
+                                    className={`text-blue-500 hover:text-blue-700 p-1 rounded-full ${
+                                      uploadingImage && imageUploadItemId === item.id ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                    disabled={uploadingImage && imageUploadItemId === item.id}
+                                  >
+                                    {uploadingImage && imageUploadItemId === item.id ? (
+                                      <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
+                                    ) : (
+                                      <Upload size={18} />
+                                    )}
+                                  </button>
+                                )}
+
+                                {/* Botón para eliminar ítem */}
+                                <button
+                                  onClick={() => removeItemFromEditingOption(index)}
+                                  className="text-red-500 hover:text-red-700"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end space-x-2 mt-4">
+                    <Button
+                      onClick={() => setEditingOption(null)}
+                      variant="outline"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleUpdateOption}
+                      className="bg-blue-500 hover:bg-blue-600 text-white flex items-center"
+                      disabled={loading || !editingOption.name || editingOption.items.length === 0}
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
+                          Guardando...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={18} className="mr-1" />
+                          Actualizar Opción
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Lista de opciones existentes */}
+        {options.length > 0 ? (
+          <div className="space-y-4">
+            {options.map((option) => (
+              <Card key={option.id} className="border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div
+                  className="p-4 cursor-pointer"
+                  onClick={() => toggleExpandOption(option.id)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center flex-wrap gap-2">
+                        <h5 className="font-medium text-lg">{option.name}</h5>
+                        {option.required && (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
+                            Obligatorio
+                          </span>
+                        )}
+                        {option.multiple && (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
+                            Múltiple
+                          </span>
+                        )}
+                        {option.multiple && option.max_selections && (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
+                            Máx: {option.max_selections}
+                          </span>
+                        )}
+
+                        {/* Mostrar etiquetas de la opción */}
+                        {option.tags && option.tags.length > 0 && (
+                          <div className="flex gap-1">
+                            {option.tags.map(tag => (
+                              <TagComponent
+                                key={tag.id}
+                                name={tag.name}
+                                color={tag.color}
+                                textColor={tag.textColor}
+                                size="sm"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {option.items?.length || 0} {option.items?.length === 1 ? 'ítem' : 'ítems'}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {expandedOptions[option.id] ?
+                        <ChevronUp size={24} className="text-gray-500" /> :
+                        <ChevronDown size={24} className="text-gray-500" />
+                      }
+                    </div>
+                  </div>
                 </div>
 
-                {/* Lista de items agregados */}
-                {newOption.items.length > 0 && (
-                  <div className="mt-4 mb-6">
-                    <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
-                    <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
-                      <ul className="divide-y divide-gray-200">
-                        {newOption.items.map((item, index) => (
-                          <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
-                            <div>
-                              <span className="font-medium">{item.name}</span>
-                              {item.price_addition > 0 && (
-                                <span className="ml-2 text-gray-600">
-                                  (+${item.price_addition.toFixed(2)})
-                                </span>
-                              )}
-                            </div>
-                            <button
-                              onClick={() => removeItemFromNewOption(index)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+                {/* Contenido expandible con los items */}
+                {expandedOptions[option.id] && (
+                  <div className="border-t border-gray-200">
+                    <div className="p-4">
+                      <div className="mb-4 flex justify-between">
+                        <h6 className="font-medium text-gray-700">Ítems disponibles:</h6>
+                        <div className="flex space-x-2">
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Evitar que se propague al hacer clic
+                              setEditingOption(option);
+                            }}
+                            variant="outline"
+                            className="text-blue-500 border-blue-500 hover:bg-blue-50"
+                            size="sm"
+                          >
+                            <Edit size={16} className="mr-1" />
+                            Editar
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Evitar que se propague al hacer clic
+                              option.id && handleDeleteOption(option.id);
+                            }}
+                            variant="outline"
+                            className="text-red-500 border-red-500 hover:bg-red-50"
+                            size="sm"
+                          >
+                            <Trash2 size={16} className="mr-1" />
+                            Eliminar
+                          </Button>
+                        </div>
+                      </div>
+
+                      {option.items && option.items.length > 0 ? (
+                        <div className="bg-gray-50 p-3 rounded-lg">
+                          <ul className="divide-y divide-gray-200">
+                            {option.items.map((item) => (
+                              <li key={item.id} className="py-2 flex justify-between items-center">
+                                <div className="flex items-center">
+                                  {/* Miniatura de imagen */}
+                                  {item.image_url ? (
+                                    <div className="relative w-10 h-10 rounded overflow-hidden mr-3 border border-gray-200">
+                                      <Image
+                                        src={item.image_url}
+                                        alt={item.name}
+                                        fill
+                                        style={{ objectFit: 'cover' }}
+                                        sizes="40px"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 bg-gray-100 rounded mr-3 flex items-center justify-center border border-gray-200">
+                                      <ImageIcon size={16} className="text-gray-400" />
+                                    </div>
+                                  )}
+
+                                  <div>
+                                    <span className="font-medium">{item.name}</span>
+                                    {item.price_addition > 0 && (
+                                      <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
+                                        +${item.price_addition.toFixed(2)}
+                                      </span>
+                                    )}
+
+                                    {/* Mostrar etiquetas del ítem */}
+                                    {item.tags && item.tags.length > 0 && (
+                                      <div className="flex mt-1 gap-1">
+                                        {item.tags.map(tag => (
+                                          <TagComponent
+                                            key={tag.id}
+                                            name={tag.name}
+                                            color={tag.color}
+                                            textColor={tag.textColor}
+                                            size="sm"
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center">
+                                  <span className={`text-xs px-2 py-0.5 rounded-full ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
+                                    {item.available ? 'Disponible' : 'No disponible'}
+                                  </span>
+
+                                  {/* Botón para subir imagen */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      option.id && item.id && triggerFileInput(option.id, item.id);
+                                    }}
+                                    className={`text-blue-500 hover:text-blue-700 p-1 rounded-full mx-2 ${
+                                      uploadingImage && imageUploadItemId === item.id ? 'opacity-50 cursor-not-allowed' : ''
+                                    }`}
+                                    disabled={uploadingImage && imageUploadItemId === item.id}
+                                  >
+                                    {uploadingImage && imageUploadItemId === item.id ? (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                                    ) : (
+                                      <Upload size={16} />
+                                    )}
+                                  </button>
+
+                                  {/* Botón para eliminar ítem */}
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      item.id && option.id && deleteItem(option.id, item.id);
+                                    }}
+                                    className="text-red-500 hover:text-red-700 ml-2"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4 bg-gray-50 rounded-lg">
+                          <p className="text-gray-500">No hay ítems en esta opción.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
-
-                <div className="flex justify-end space-x-2 mt-4">
-                  <Button
-                    onClick={() => setShowAddForm(false)}
-                    variant="outline"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    onClick={handleAddOption}
-                    className="bg-blue-500 hover:bg-blue-600 text-white flex items-center"
-                    disabled={loading || !newOption.name || newOption.items.length === 0}
-                  >
-                    {loading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                        Guardando...
-                      </>
-                    ) : (
-                      <>
-                        <Check size={18} className="mr-1" />
-                        Guardar Opción
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 bg-gray-50 rounded-lg">
+            <p className="text-gray-500">No hay opciones configuradas para este producto.</p>
+          </div>
         )}
-      </AnimatePresence>
-
-      {/* Formulario para editar opción */}
-      <AnimatePresence>
-        {editingOption && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <Card className="border-2 border-emerald-200">
-              <CardContent className="pt-6">
-                <h4 className="font-medium mb-4 text-lg text-emerald-600">Editar Opción</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nombre *
-                    </label>
-                    <input
-                      type="text"
-                      value={editingOption.name}
-                      onChange={(e) => setEditingOption({ ...editingOption, name: e.target.value })}
-                      className="w-full p-2 border rounded"
-                      placeholder="Ej: Tamaño, Sabor, etc."
-                    />
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editingOption.required}
-                        onChange={(e) => setEditingOption({ ...editingOption, required: e.target.checked })}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">Obligatorio</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={editingOption.multiple}
-                        onChange={(e) => setEditingOption({ ...editingOption, multiple: e.target.checked })}
-                        className="mr-2"
-                      />
-                      <span className="text-sm">Selección múltiple</span>
-                    </label>
-                  </div>
-                </div>
-
-                {editingOption.multiple && (
-                  <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Máximo de selecciones
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={editingOption.max_selections || ''}
-                      onChange={(e) => setEditingOption({ ...editingOption, max_selections: e.target.value ? parseInt(e.target.value) : undefined })}
-                      className="w-32 p-2 border rounded"
-                      placeholder="Sin límite"
-                    />
-                    <span className="text-xs text-gray-500 ml-2">Deja en blanco para no limitar</span>
-                  </div>
-                )}
-
-                <h5 className="font-medium mt-6 mb-4">Agregar Items</h5>
-                <div className="grid grid-cols-1 md:grid-cols -3 gap-4 mb-4">
-                                                                                <div>
-                                                                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                    Nombre *
-                                                                                  </label>
-                                                                                  <input
-                                                                                    type="text"
-                                                                                    value={newItem.name}
-                                                                                    onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
-                                                                                    className="w-full p-2 border rounded"
-                                                                                    placeholder="Ej: Grande, Pequeño, etc."
-                                                                                  />
-                                                                                </div>
-                                                                                <div>
-                                                                                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                    Precio adicional
-                                                                                  </label>
-                                                                                  <input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    step="0.01"
-                                                                                    value={newItem.price_addition || 0}
-                                                                                    onChange={(e) => setNewItem({ ...newItem, price_addition: parseFloat(e.target.value) || 0 })}
-                                                                                    className="w-full p-2 border rounded"
-                                                                                    placeholder="0.00"
-                                                                                  />
-                                                                                </div>
-                                                                                <div className="flex items-end">
-                                                                                  <Button
-                                                                                    onClick={addItemToEditingOption}
-                                                                                    className="bg-green-500 hover:bg-green-600 text-white flex items-center"
-                                                                                  >
-                                                                                    <Plus size={18} className="mr-1" />
-                                                                                    Agregar Item
-                                                                                  </Button>
-                                                                                </div>
-                                                                              </div>
-
-                                                                              {/* Lista de items de la opción que se está editando */}
-                                                                              {editingOption.items.length > 0 && (
-                                                                                <div className="mt-4 mb-6">
-                                                                                  <h6 className="text-sm font-medium mb-2">Items agregados:</h6>
-                                                                                  <div className="px-4 pb-4 border-b border-gray-200 rounded-lg bg-white shadow">
-                                                                                    <ul className="divide-y divide-gray-200">
-                                                                                      {editingOption.items.map((item, index) => (
-                                                                                        <li key={index} className="py-3 flex justify-between items-center border-b border-gray-100">
-                                                                                          <div className="flex items-center">
-                                                                                            {/* Miniatura de imagen */}
-                                                                                            {item.image_url ? (
-                                                                                              <div className="relative w-10 h-10 rounded overflow-hidden mr-3 border border-gray-200">
-                                                                                                <Image
-                                                                                                  src={item.image_url}
-                                                                                                  alt={item.name}
-                                                                                                  fill
-                                                                                                  style={{ objectFit: 'cover' }}
-                                                                                                  sizes="40px"
-                                                                                                />
-                                                                                              </div>
-                                                                                            ) : (
-                                                                                              <div className="w-10 h-10 bg-gray-100 rounded mr-3 flex items-center justify-center border border-gray-200">
-                                                                                                <ImageIcon size={16} className="text-gray-400" />
-                                                                                              </div>
-                                                                                            )}
-
-                                                                                            <div>
-                                                                                              <span className="font-medium">{item.name}</span>
-                                                                                              {item.price_addition > 0 && (
-                                                                                                <span className="ml-2 text-gray-600">
-                                                                                                  (+${item.price_addition.toFixed(2)})
-                                                                                                </span>
-                                                                                              )}
-                                                                                              <button
-                                                                                                onClick={() => {
-                                                                                                  const newAvailability = !item.available;
-                                                                                                  updateItemInEditingOption(index, { available: newAvailability });
-                                                                                                }}
-                                                                                                className={`ml-3 px-2 py-1 text-xs rounded flex items-center ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}
-                                                                                              >
-                                                                                                {item.available ? (
-                                                                                                  <>
-                                                                                                    <Check size={14} className="mr-1" />
-                                                                                                    Disponible
-                                                                                                  </>
-                                                                                                ) : (
-                                                                                                  <>
-                                                                                                    <X size={14} className="mr-1" />
-                                                                                                    No disponible
-                                                                                                  </>
-                                                                                                )}
-                                                                                              </button>
-                                                                                            </div>
-                                                                                          </div>
-
-                                                                                          <div className="flex space-x-2">
-                                                                                            {/* Botón para subir imagen */}
-                                                                                            {item.id && (
-                                                                                              <button
-                                                                                                onClick={() => item.id && editingOption?.id && triggerFileInput(editingOption.id, item.id)}
-                                                                                                className={`text-blue-500 hover:text-blue-700 p-1 rounded-full ${
-                                                                                                  uploadingImage && imageUploadItemId === item.id ? 'opacity-50 cursor-not-allowed' : ''
-                                                                                                }`}
-                                                                                                disabled={uploadingImage && imageUploadItemId === item.id}
-                                                                                              >
-                                                                                                {uploadingImage && imageUploadItemId === item.id ? (
-                                                                                                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-blue-500"></div>
-                                                                                                ) : (
-                                                                                                  <Upload size={18} />
-                                                                                                )}
-                                                                                              </button>
-                                                                                            )}
-
-                                                                                            {/* Botón para eliminar ítem */}
-                                                                                            <button
-                                                                                              onClick={() => removeItemFromEditingOption(index)}
-                                                                                              className="text-red-500 hover:text-red-700"
-                                                                                            >
-                                                                                              <Trash2 size={18} />
-                                                                                            </button>
-                                                                                          </div>
-                                                                                        </li>
-                                                                                      ))}
-                                                                                    </ul>
-                                                                                  </div>
-                                                                                </div>
-                                                                              )}
-
-                                                                              <div className="flex justify-end space-x-2 mt-4">
-                                                                                <Button
-                                                                                  onClick={() => setEditingOption(null)}
-                                                                                  variant="outline"
-                                                                                >
-                                                                                  Cancelar
-                                                                                </Button>
-                                                                                <Button
-                                                                                  onClick={handleUpdateOption}
-                                                                                  className="bg-blue-500 hover:bg-blue-600 text-white flex items-center"
-                                                                                  disabled={loading || !editingOption.name || editingOption.items.length === 0}
-                                                                                >
-                                                                                  {loading ? (
-                                                                                    <>
-                                                                                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                                                                                      Guardando...
-                                                                                    </>
-                                                                                  ) : (
-                                                                                    <>
-                                                                                      <Check size={18} className="mr-1" />
-                                                                                      Actualizar Opción
-                                                                                    </>
-                                                                                  )}
-                                                                                </Button>
-                                                                              </div>
-                                                                            </CardContent>
-                                                                          </Card>
-                                                                        </motion.div>
-                                                                      )}
-                                                                    </AnimatePresence>
-                                                                    {/* Lista de opciones existentes */}
-                                                                          {options.length > 0 ? (
-                                                                            <div className="space-y-4">
-                                                                              {options.map((option) => (
-                                                                                <Card key={option.id} className="border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-                                                                                  <div
-                                                                                    className="p-4 cursor-pointer"
-                                                                                    onClick={() => toggleExpandOption(option.id)}
-                                                                                  >
-                                                                                    <div className="flex justify-between items-center">
-                                                                                      <div>
-                                                                                        <div className="flex items-center">
-                                                                                          <h5 className="font-medium text-lg">{option.name}</h5>
-                                                                                          {option.required && (
-                                                                                            <span className="ml-2 px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                                                                              Obligatorio
-                                                                                            </span>
-                                                                                          )}
-                                                                                          {option.multiple && (
-                                                                                            <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                                                                              Múltiple
-                                                                                            </span>
-                                                                                          )}
-                                                                                          {option.multiple && option.max_selections && (
-                                                                                            <span className="ml-2 px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full">
-                                                                                              Máx: {option.max_selections}
-                                                                                            </span>
-                                                                                          )}
-                                                                                        </div>
-                                                                                        <div className="text-sm text-gray-500 mt-1">
-                                                                                          {option.items?.length || 0} {option.items?.length === 1 ? 'ítem' : 'ítems'}
-                                                                                        </div>
-                                                                                      </div>
-                                                                                      <div className="flex items-center space-x-2">
-                                                                                        {expandedOptions[option.id] ?
-                                                                                          <ChevronUp size={24} className="text-gray-500" /> :
-                                                                                          <ChevronDown size={24} className="text-gray-500" />
-                                                                                        }
-                                                                                      </div>
-                                                                                    </div>
-                                                                                  </div>
-
-                                                                                  {/* Contenido expandible con los items */}
-                                                                                  {expandedOptions[option.id] && (
-                                                                                    <div className="border-t border-gray-200">
-                                                                                      <div className="p-4">
-                                                                                        <div className="mb-4 flex justify-between">
-                                                                                          <h6 className="font-medium text-gray-700">Ítems disponibles:</h6>
-                                                                                          <div className="flex space-x-2">
-                                                                                            <Button
-                                                                                              onClick={(e) => {
-                                                                                                e.stopPropagation(); // Evitar que se propague al hacer clic
-                                                                                                setEditingOption(option);
-                                                                                              }}
-                                                                                              variant="outline"
-                                                                                              className="text-blue-500 border-blue-500 hover:bg-blue-50"
-                                                                                              size="sm"
-                                                                                            >
-                                                                                              <Edit size={16} className="mr-1" />
-                                                                                              Editar
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                              onClick={(e) => {
-                                                                                                e.stopPropagation(); // Evitar que se propague al hacer clic
-                                                                                                option.id && handleDeleteOption(option.id);
-                                                                                              }}
-                                                                                              variant="outline"
-                                                                                              className="text-red-500 border-red-500 hover:bg-red-50"
-                                                                                              size="sm"
-                                                                                            >
-                                                                                              <Trash2 size={16} className="mr-1" />
-                                                                                              Eliminar
-                                                                                            </Button>
-                                                                                          </div>
-                                                                                        </div>
-
-                                                                                        {option.items && option.items.length > 0 ? (
-                                                                                          <div className="bg-gray-50 p-3 rounded-lg">
-                                                                                            <ul className="divide-y divide-gray-200">
-                                                                                              {option.items.map((item) => (
-                                                                                                <li key={item.id} className="py-2 flex justify-between items-center">
-                                                                                                  <div className="flex items-center">
-                                                                                                    {/* Miniatura de imagen */}
-                                                                                                    {item.image_url ? (
-                                                                                                      <div className="relative w-10 h-10 rounded overflow-hidden mr-3 border border-gray-200">
-                                                                                                        <Image
-                                                                                                          src={item.image_url}
-                                                                                                          alt={item.name}
-                                                                                                          fill
-                                                                                                          style={{ objectFit: 'cover' }}
-                                                                                                          sizes="40px"
-                                                                                                        />
-                                                                                                      </div>
-                                                                                                    ) : (
-                                                                                                      <div className="w-10 h-10 bg-gray-100 rounded mr-3 flex items-center justify-center border border-gray-200">
-                                                                                                        <ImageIcon size={16} className="text-gray-400" />
-                                                                                                      </div>
-                                                                                                    )}
-
-                                                                                                    <div>
-                                                                                                      <span className="font-medium">{item.name}</span>
-                                                                                                      {item.price_addition > 0 && (
-                                                                                                        <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-xs">
-                                                                                                          +${item.price_addition.toFixed(2)}
-                                                                                                        </span>
-                                                                                                      )}
-                                                                                                    </div>
-                                                                                                  </div>
-
-                                                                                                  <div className="flex items-center">
-                                                                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${item.available ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
-                                                                                                      {item.available ? 'Disponible' : 'No disponible'}
-                                                                                                    </span>
-
-                                                                                                    {/* Botón para subir imagen */}
-                                                                                                    <button
-                                                                                                      onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        option.id && item.id && triggerFileInput(option.id, item.id);
-                                                                                                      }}
-                                                                                                      className={`text-blue-500 hover:text-blue-700 p-1 rounded-full mx-2 ${
-                                                                                                        uploadingImage && imageUploadItemId === item.id ? 'opacity-50 cursor-not-allowed' : ''
-                                                                                                      }`}
-                                                                                                      disabled={uploadingImage && imageUploadItemId === item.id}
-                                                                                                    >
-                                                                                                      {uploadingImage && imageUploadItemId === item.id ? (
-                                                                                                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
-                                                                                                      ) : (
-                                                                                                        <Upload size={16} />
-                                                                                                      )}
-                                                                                                    </button>
-
-                                                                                                    {/* Botón para eliminar ítem */}
-                                                                                                    <button
-                                                                                                      onClick={(e) => {
-                                                                                                        e.stopPropagation();
-                                                                                                        item.id && option.id && deleteItem(option.id, item.id);
-                                                                                                      }}
-                                                                                                      className="text-red-500 hover:text-red-700 ml-2"
-                                                                                                    >
-                                                                                                      <Trash2 size={16} />
-                                                                                                    </button>
-                                                                                                  </div>
-                                                                                                </li>
-                                                                                              ))}
-                                                                                            </ul>
-                                                                                          </div>
-                                                                                        ) : (
-                                                                                          <div className="text-center py-4 bg-gray-50 rounded-lg">
-                                                                                            <p className="text-gray-500">No hay ítems en esta opción.</p>
-                                                                                          </div>
-                                                                                        )}
-                                                                                      </div>
-                                                                                    </div>
-                                                                                  )}
-                                                                                </Card>
-                                                                              ))}
-                                                                            </div>
-                                                                          ) : (
-                                                                            <div className="text-center py-6 bg-gray-50 rounded-lg">
-                                                                              <p className="text-gray-500">No hay opciones configuradas para este producto.</p>
-                                                                            </div>
-                                                                          )}
-                                                                        </div>
-                                                                      );
-                                                                    }
+      </div>
+    );
+  }
