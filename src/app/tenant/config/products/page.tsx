@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import ProductOptionsEditor from '@/components/products/ProductOptionsEditor';
 import ProductTagSelector from '@/components/products/ProductTagSelector';
 import { updateTagAssignments } from '@/utils/tagUtils';
-import { Tag } from '@/types/tags'; // Asegúrate de importar también el tipo Tag
+import { Tag as TagComponent } from '@/components/ui/Tag';
+import { Tag as TagType } from '@/types/tags'; // Renombramos para evitar conflicto
 
 // Interfaces para tipos de producto y opciones
 interface OptionItem {
@@ -44,7 +45,7 @@ interface Product {
   commerce_id?: number;
   image_url?: string;
   options?: ProductOption[];
-  tags?: Tag[]; // Añade esta línea
+  tags?: TagType[]; // Uso del tipo renombrado para etiquetas
   created_at?: string;
   updated_at?: string;
 }
@@ -61,7 +62,7 @@ export default function ProductsManagement() {
     description: '',
     price: 0,
     category_id: 0,
-    tags: [] // Añade esta línea para inicializar las etiquetas
+    tags: [] // Inicialización de etiquetas
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -121,7 +122,9 @@ export default function ProductsManagement() {
       // Procesar productos
       const processedProducts = productsData.map(product => ({
         ...product,
-        price: typeof product.price === 'number' ? product.price : Number(product.price) || 0
+        price: typeof product.price === 'number' ? product.price : Number(product.price) || 0,
+        // Asegurar que las etiquetas estén disponibles
+        tags: product.tags || []
       }));
 
       setProducts(processedProducts);
@@ -255,6 +258,20 @@ export default function ProductsManagement() {
         }
       });
 
+      // Asignar etiquetas al producto
+      if (newProduct.id && currentProduct.tags && currentProduct.tags.length > 0) {
+        try {
+          // Obtener los IDs de las etiquetas seleccionadas
+          const tagIds = currentProduct.tags.map(tag => tag.id || 0).filter(id => id !== 0);
+
+          // Utilizar la función de utilidad para actualizar asignaciones de etiquetas
+          await updateTagAssignments(newProduct.id, [], tagIds, 'product');
+        } catch (tagError) {
+          console.error('Error al asignar etiquetas al producto:', tagError);
+          // No interrumpimos el proceso principal si falla la asignación de etiquetas
+        }
+      }
+
       // Resetear formulario
       resetForm();
       setShowForm(false);
@@ -350,6 +367,24 @@ export default function ProductsManagement() {
             }
           : p)
       );
+
+      // Actualizar etiquetas del producto
+      if (currentProduct.id && currentProduct.tags) {
+        try {
+          // Buscar el producto original para obtener sus etiquetas actuales
+          const originalProduct = products.find(p => p.id === currentProduct.id);
+          const originalTagIds = (originalProduct?.tags || []).map(tag => tag.id || 0).filter(id => id !== 0);
+
+          // Obtener los IDs de las nuevas etiquetas seleccionadas
+          const newTagIds = currentProduct.tags.map(tag => tag.id || 0).filter(id => id !== 0);
+
+          // Utilizar la función de utilidad para actualizar asignaciones de etiquetas
+          await updateTagAssignments(currentProduct.id, originalTagIds, newTagIds, 'product');
+        } catch (tagError) {
+          console.error('Error al actualizar etiquetas del producto:', tagError);
+          // No interrumpimos el proceso principal si falla la actualización de etiquetas
+        }
+      }
 
       // Resetear formulario
       resetForm();
@@ -584,6 +619,14 @@ export default function ProductsManagement() {
                       </div>
                     </div>
 
+                    {/* Selector de etiquetas para productos */}
+                    <div className="mb-4">
+                      <ProductTagSelector
+                        selectedTags={currentProduct.tags || []}
+                        onChange={(tags) => setCurrentProduct({ ...currentProduct, tags })}
+                      />
+                    </div>
+
                     <div className="flex justify-end space-x-2">
                       <Button
                         type="button"
@@ -691,6 +734,21 @@ export default function ProductsManagement() {
                               {product.description && (
                                 <div className="text-xs text-gray-500">{product.description.substring(0, 50)}{product.description.length > 50 ? '...' : ''}</div>
                               )}
+                              {/* Mostrar etiquetas del producto */}
+                              {product.tags && product.tags.length > 0 && (
+                                <div className="flex mt-1 gap-1">
+                                  {product.tags.map(tag => (
+                                    <TagComponent
+                                      key={tag.id}
+                                      name={tag.name}
+                                      color={tag.color}
+                                      textColor={tag.textColor || '#FFFFFF'}
+                                      discount={tag.discount}
+                                      size="sm"
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </td>
                             <td className="px-4 py-2 whitespace-nowrap">
                               <div className="text-sm text-gray-900">
@@ -719,68 +777,68 @@ export default function ProductsManagement() {
                                   }}
                                   variant="outline"
                                   className="text-blue-600 border-blue-600 hover:bg-blue-50 px-2 py-1 text-xs"
-                                >
-                                  Editar
-                                </Button>
-                                <Button
-                                  onClick={() => {
-                                    setProductToDelete(product);
-                                    setShowDeleteModal(true);
-                                  }}
-                                  variant="outline"
-                                  className="text-red-600 border-red-600 hover:bg-red-50 px-2 py-1 text-xs"
-                                >
-                                  Eliminar
-                                </Button>
-                              </div>
-                            </td>
-                          </motion.tr>
-                        ))}
-                      </AnimatePresence>
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </>
-        )}
-      </motion.div>
+                                                                  >
+                                                                    Editar
+                                                                  </Button>
+                                                                  <Button
+                                                                    onClick={() => {
+                                                                      setProductToDelete(product);
+                                                                      setShowDeleteModal(true);
+                                                                    }}
+                                                                    variant="outline"
+                                                                    className="text-red-600 border-red-600 hover:bg-red-50 px-2 py-1 text-xs"
+                                                                  >
+                                                                    Eliminar
+                                                                  </Button>
+                                                                </div>
+                                                              </td>
+                                                            </motion.tr>
+                                                          ))}
+                                                        </AnimatePresence>
+                                                      </tbody>
+                                                    </table>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </>
+                                          )}
+                                        </motion.div>
 
-      {/* Modal de confirmación para eliminar */}
-      {showDeleteModal && productToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="bg-white rounded-lg max-w-md w-full p-6"
-          >
-            <h3 className="text-lg font-semibold mb-2">Confirmar eliminación</h3>
-            <p className="mb-4">
-              ¿Estás seguro de que deseas eliminar el producto <strong>"{productToDelete.name}"</strong>?
-            </p>
-            <p className="text-red-600 text-sm mb-4">
-              Esta acción no se puede deshacer.
-            </p>
-            <div className="flex justify-end space-x-2">
-              <Button
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setProductToDelete(null);
-                }}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleDeleteProduct}
-                className="bg-red-500 hover:bg-red-600 text-white"
-              >
-                Eliminar
-              </Button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-    </div>
-  );
-}
+                                        {/* Modal de confirmación para eliminar */}
+                                        {showDeleteModal && productToDelete && (
+                                          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                                            <motion.div
+                                              initial={{ scale: 0.9, opacity: 0 }}
+                                              animate={{ scale: 1, opacity: 1 }}
+                                              className="bg-white rounded-lg max-w-md w-full p-6"
+                                            >
+                                              <h3 className="text-lg font-semibold mb-2">Confirmar eliminación</h3>
+                                              <p className="mb-4">
+                                                ¿Estás seguro de que deseas eliminar el producto <strong>"{productToDelete.name}"</strong>?
+                                              </p>
+                                              <p className="text-red-600 text-sm mb-4">
+                                                Esta acción no se puede deshacer.
+                                              </p>
+                                              <div className="flex justify-end space-x-2">
+                                                <Button
+                                                  onClick={() => {
+                                                    setShowDeleteModal(false);
+                                                    setProductToDelete(null);
+                                                  }}
+                                                  variant="outline"
+                                                >
+                                                  Cancelar
+                                                </Button>
+                                                <Button
+                                                  onClick={handleDeleteProduct}
+                                                  className="bg-red-500 hover:bg-red-600 text-white"
+                                                >
+                                                  Eliminar
+                                                </Button>
+                                              </div>
+                                            </motion.div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  }
