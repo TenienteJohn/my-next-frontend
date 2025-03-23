@@ -1,6 +1,42 @@
 // src/utils/tagUtils.ts
 import axios from 'axios';
 
+// Funciones para gestionar etiquetas de productos
+export const assignTagToProduct = async (productId: number, tagId: number): Promise<void> => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.post(
+      `/api/tags/assign-product/${productId}/${tagId}`,
+      {},
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al asignar etiqueta a producto:', error);
+    throw error;
+  }
+};
+
+export const removeTagFromProduct = async (productId: number, tagId: number): Promise<void> => {
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('No se encontró token de autenticación');
+    }
+
+    await axios.delete(
+      `/api/tags/assign-product/${productId}/${tagId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+  } catch (error) {
+    console.error('Error al quitar etiqueta de producto:', error);
+    throw error;
+  }
+};
+
 // Funciones para gestionar etiquetas de opciones
 export const assignTagToOption = async (optionId: number, tagId: number): Promise<void> => {
   try {
@@ -78,7 +114,7 @@ export const updateTagAssignments = async (
   entityId: number,
   currentTags: number[],
   newTags: number[],
-  entityType: 'option' | 'item'
+  entityType: 'product' | 'option' | 'item'
 ): Promise<void> => {
   try {
     // Determinar qué etiquetas hay que añadir
@@ -90,7 +126,15 @@ export const updateTagAssignments = async (
     // Realizar las operaciones
     const operations = [];
 
-    if (entityType === 'option') {
+    if (entityType === 'product') {
+      for (const tagId of tagsToAdd) {
+        operations.push(assignTagToProduct(entityId, tagId));
+      }
+
+      for (const tagId of tagsToRemove) {
+        operations.push(removeTagFromProduct(entityId, tagId));
+      }
+    } else if (entityType === 'option') {
       for (const tagId of tagsToAdd) {
         operations.push(assignTagToOption(entityId, tagId));
       }

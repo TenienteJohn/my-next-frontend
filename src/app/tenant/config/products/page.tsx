@@ -7,6 +7,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import ProductOptionsEditor from '@/components/products/ProductOptionsEditor';
+import ProductTagSelector from '@/components/products/ProductTagSelector';
+import { updateTagAssignments } from '@/utils/tagUtils';
+import { Tag } from '@/types/tags'; // Asegúrate de importar también el tipo Tag
 
 // Interfaces para tipos de producto y opciones
 interface OptionItem {
@@ -41,6 +44,7 @@ interface Product {
   commerce_id?: number;
   image_url?: string;
   options?: ProductOption[];
+  tags?: Tag[]; // Añade esta línea
   created_at?: string;
   updated_at?: string;
 }
@@ -56,7 +60,8 @@ export default function ProductsManagement() {
     name: '',
     description: '',
     price: 0,
-    category_id: 0
+    category_id: 0,
+    tags: [] // Añade esta línea para inicializar las etiquetas
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -149,7 +154,8 @@ export default function ProductsManagement() {
       name: '',
       description: '',
       price: 0,
-      category_id: categories.length > 0 ? categories[0].id : 0
+      category_id: categories.length > 0 ? categories[0].id : 0,
+      tags: [] // Resetear también las etiquetas
     });
     setSelectedFile(null);
     setPreviewUrl(null);
