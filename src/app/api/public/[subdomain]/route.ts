@@ -1,5 +1,6 @@
-/// src/app/api/public/[subdomain]/route.ts
+// src/app/api/public/[subdomain]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { normalizeTags } from '@/utils/dataTransformers';
 
 export async function GET(
   request: NextRequest,
@@ -48,7 +49,45 @@ export async function GET(
     // Obtener los datos de la respuesta
     const data = await response.json();
 
-    // Devolver los datos al cliente
+    // Normalizar las etiquetas en los productos
+    if (data && data.categories && Array.isArray(data.categories)) {
+      data.categories = data.categories.map(category => {
+        if (category.products && Array.isArray(category.products)) {
+          category.products = category.products.map(product => {
+            // Normalizar las etiquetas del producto
+            if (product.tags) {
+              product.tags = normalizeTags(product.tags);
+            }
+
+            // Normalizar las etiquetas de las opciones
+            if (product.options) {
+              product.options = product.options.map(option => {
+                if (option.tags) {
+                  option.tags = normalizeTags(option.tags);
+                }
+
+                // Normalizar las etiquetas de los ítems
+                if (option.items) {
+                  option.items = option.items.map(item => {
+                    if (item.tags) {
+                      item.tags = normalizeTags(item.tags);
+                    }
+                    return item;
+                  });
+                }
+
+                return option;
+              });
+            }
+
+            return product;
+          });
+        }
+        return category;
+      });
+    }
+
+    // Devolver los datos normalizados al cliente
     return NextResponse.json(data);
   } catch (error: unknown) {
     console.error("Proxy API - Public: Error en la solicitud", error);

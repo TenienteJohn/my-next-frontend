@@ -10,6 +10,7 @@ import Image from 'next/image';
 import { OptionItem, ProductOption } from '@/types/product-options';
 import { Tag } from '@/types/tags';
 import { Tag as TagComponent } from '@/components/ui/Tag';
+import { updateTagAssignments, assignTagToOption, removeTagFromOption, assignTagToItem, removeTagFromItem } from '@/utils/tagUtils';
 
 // Componente selector de etiquetas
 const TagSelector = ({ type, selectedTags = [], onChange }) => {
@@ -108,119 +109,6 @@ const TagSelector = ({ type, selectedTags = [], onChange }) => {
       </div>
     </div>
   );
-};
-
-// Funciones para gestionar etiquetas
-const assignTagToOption = async (optionId, tagId) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No se encontró token de autenticación');
-    }
-
-    await axios.post(
-      `/api/tags/assign-option/${optionId}/${tagId}`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (error) {
-    console.error('Error al asignar etiqueta a opción:', error);
-    throw error;
-  }
-};
-
-const removeTagFromOption = async (optionId, tagId) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No se encontró token de autenticación');
-    }
-
-    await axios.delete(
-      `/api/tags/assign-option/${optionId}/${tagId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (error) {
-    console.error('Error al quitar etiqueta de opción:', error);
-    throw error;
-  }
-};
-
-const assignTagToItem = async (itemId, tagId) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No se encontró token de autenticación');
-    }
-
-    await axios.post(
-      `/api/tags/assign-item/${itemId}/${tagId}`,
-      {},
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (error) {
-    console.error('Error al asignar etiqueta a ítem:', error);
-    throw error;
-  }
-};
-
-const removeTagFromItem = async (itemId, tagId) => {
-  try {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No se encontró token de autenticación');
-    }
-
-    await axios.delete(
-      `/api/tags/assign-item/${itemId}/${tagId}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-  } catch (error) {
-    console.error('Error al quitar etiqueta de ítem:', error);
-    throw error;
-  }
-};
-
-const updateTagAssignments = async (
-  entityId,
-  currentTags,
-  newTags,
-  entityType
-) => {
-  try {
-    // Determinar qué etiquetas hay que añadir
-    const tagsToAdd = newTags.filter(id => !currentTags.includes(id));
-
-    // Determinar qué etiquetas hay que quitar
-    const tagsToRemove = currentTags.filter(id => !newTags.includes(id));
-
-    // Realizar las operaciones
-    const operations = [];
-
-    if (entityType === 'option') {
-      for (const tagId of tagsToAdd) {
-        operations.push(assignTagToOption(entityId, tagId));
-      }
-
-      for (const tagId of tagsToRemove) {
-        operations.push(removeTagFromOption(entityId, tagId));
-      }
-    } else { // 'item'
-      for (const tagId of tagsToAdd) {
-        operations.push(assignTagToItem(entityId, tagId));
-      }
-
-      for (const tagId of tagsToRemove) {
-        operations.push(removeTagFromItem(entityId, tagId));
-      }
-    }
-
-    // Ejecutar todas las operaciones
-    await Promise.all(operations);
-  } catch (error) {
-    console.error(`Error al actualizar etiquetas de ${entityType}:`, error);
-    throw error;
-  }
 };
 
 interface ProductOptionsEditorProps {

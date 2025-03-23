@@ -7,6 +7,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { CartModule, CartButton, CartView } from '@/components/cart/CartModule';
 import { ProductDetailModal } from '@/components/cart/ProductDetailModal';
+import { Tag } from '@/components/ui/Tag';
 
 // Interfaces para opciones de producto
 interface OptionItem {
@@ -45,6 +46,16 @@ interface Product {
   category_id: number;
   options?: ProductOption[];
   selected_options?: SelectedOption[];
+  tags?: Array<{
+    id: number;
+    name: string;
+    color: string;
+    textColor?: string;
+    discount?: number;
+    isRecommended?: boolean;
+    disableSelection?: boolean;
+    priority?: number;
+  }>;
 }
 
 interface Category {
@@ -683,12 +694,21 @@ export default function TenantLandingPage() {
                                             </div>
                                           )}
 
-                                          {/* Indicador de producto con opciones */}
-                                          {product.options && product.options.length > 0 && (
-                                            <div className="absolute top-2 left-2">
-                                              <span className="bg-blue-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                                                Personalizable
-                                              </span>
+                                          {/* Mostrar etiquetas del producto */}
+                                          {product.tags && product.tags.length > 0 && (
+                                            <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                                              {product.tags
+                                                .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+                                                .map(tag => (
+                                                  <Tag
+                                                    key={tag.id}
+                                                    name={tag.name}
+                                                    color={tag.color}
+                                                    textColor={tag.textColor || '#FFFFFF'}
+                                                    discount={tag.discount}
+                                                    size="sm"
+                                                  />
+                                                ))}
                                             </div>
                                           )}
 
