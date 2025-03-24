@@ -536,6 +536,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="flex items-center space-x-2">
                 <motion.button
                   whileTap={{ scale: 0.9 }}
+                  onClick={() => {
+                    // Implementación de función para compartir
+                    if (navigator.share) {
+                      navigator.share({
+                        title: product.name,
+                        text: product.description || `Mira este producto: ${product.name}`,
+                        url: window.location.href
+                      }).catch(error => console.log('Error compartiendo', error));
+                    } else {
+                      // Fallback para navegadores que no soportan Web Share API
+                      const url = window.location.href;
+                      navigator.clipboard.writeText(url)
+                        .then(() => alert('¡Enlace copiado al portapapeles!'))
+                        .catch(err => console.error('Error al copiar: ', err));
+                    }
+                  }}
                   className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-md"
                 >
                   <Share size={18} />
@@ -727,12 +743,26 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                   <div className="flex flex-grow flex-col">
                                     <span className="text-lg font-medium text-gray-800">{item.name}</span>
                                     {item.price_addition > 0 && (
-                                      <span className="text-gray-500">{formatPrice(item.price_addition)}</span>
+                                      <div className="flex items-center text-gray-500">
+                                        <span>+{formatPrice(item.price_addition)}</span>
+                                        {/* Etiqueta de "Sugerido" a la derecha del precio */}
+                                        {item.tags?.some(tag => tag.isRecommended) && (
+                                          <span className="ml-2 text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded-full border border-green-100 inline-flex items-center">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                            Sugerido
+                                          </span>
+                                        )}
+                                      </div>
                                     )}
 
-                                    {/* Etiqueta de "Sugerido" si corresponde */}
-                                    {item.tags?.some(tag => tag.isRecommended) && (
-                                      <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full mt-1">
+                                    {/* Si no hay precio pero hay etiqueta de sugerido */}
+                                    {item.price_addition <= 0 && item.tags?.some(tag => tag.isRecommended) && (
+                                      <span className="text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded-full border border-green-100 inline-flex items-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                        </svg>
                                         Sugerido
                                       </span>
                                     )}
@@ -808,7 +838,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       className="px-5 overflow-hidden"
                     >
                       <div className="pb-4 space-y-2">
-                        <motion.div
+                                                  <motion.div
                           initial={{ opacity: 0, y: 5 }}
                           animate={{ opacity: 1, y: 0 }}
                           className="flex items-center justify-between py-3 px-3 rounded-xl border border-gray-100 hover:border-gray-200"
@@ -823,7 +853,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             </div>
                             <div>
                               <span className="text-lg font-medium text-gray-800">Complemento 1</span>
-                              <div className="text-gray-500">+ {formatPrice(10000)}</div>
+                              <div className="text-gray-500 flex items-center">
+                                +{formatPrice(10000)}
+                                <span className="ml-2 text-xs text-green-600 font-medium bg-green-50 px-1.5 py-0.5 rounded-full border border-green-100 inline-flex items-center">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 mr-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  Popular
+                                </span>
+                              </div>
                             </div>
                           </div>
                           {/* Control de cantidad para complementos */}
