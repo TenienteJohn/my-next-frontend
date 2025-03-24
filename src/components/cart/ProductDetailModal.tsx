@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, ChevronDown, Plus, Minus, Trash2, Heart } from 'lucide-react';
-import { Tag } from '@/components/ui/Tag'; // Importación con exportación con nombre
+import { Tag } from '@/components/ui/Tag';
 
 interface OptionItem {
   id: number;
@@ -34,11 +34,11 @@ interface Product {
 }
 
 interface SelectedOption {
-  optionId: number;
-  optionName: string;
-  items: {
-    id: number;
-    name: string;
+  option_id: number;
+  option_name: string;
+  selected_items: {
+    item_id: number;
+    item_name: string;
     price_addition: number;
   }[];
 }
@@ -50,14 +50,14 @@ interface ProductDetailModalProps {
   onAddToCart: (product: Product, quantity: number, selectedOptions: SelectedOption[]) => void;
 }
 
+// Función mejorada para bloquear el scroll en iOS, adaptada de CartModule
 const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivElement>) => {
-  const isIOS =
-    typeof navigator !== 'undefined' &&
-    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
-    !(window as any).MSStream;
+  // Detectamos iOS
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
   const scrollY = useRef(0);
 
   useEffect(() => {
+    // Inyectar estilos globales para iOS si no existen
     if (!document.getElementById('ios-modal-styles')) {
       const styleEl = document.createElement('style');
       styleEl.id = 'ios-modal-styles';
@@ -67,18 +67,38 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
           width: 100%;
           height: 100%;
           overflow: hidden;
-          overscroll-behavior: none;
-          touch-action: none;
-          -webkit-overflow-scrolling: none;
         }
-        .modal-ios-scroll {
-          -webkit-overflow-scrolling: touch;
+
+        .modal-content-scroll {
+          -webkit-overflow-scrolling: touch !important;
           overscroll-behavior: contain;
-          overflow-y: auto;
+          overflow-y: auto !important;
           overflow-x: hidden;
-          height: 100%;
+          height: auto;
           max-height: 90vh;
-          touch-action: pan-y;
+          touch-action: pan-y !important;
+        }
+
+        /* Evitar que los innerScrollables tengan problemas */
+        .inner-scrollable {
+          -webkit-overflow-scrolling: touch !important;
+          overflow-y: auto !important;
+          touch-action: pan-y !important;
+          overscroll-behavior: contain;
+        }
+
+        .swipe-indicator {
+          width: 40px;
+          height: 5px;
+          background-color: rgba(0,0,0,0.2);
+          border-radius: 99px;
+          margin: 8px auto;
+          transition: all 0.3s;
+        }
+
+        .swipe-indicator.closing {
+          width: 50px;
+          background-color: rgba(0,0,0,0.4);
         }
       `;
       document.head.appendChild(styleEl);
@@ -86,62 +106,60 @@ const useBodyScrollLock = (isOpen: boolean, modalRef: React.RefObject<HTMLDivEle
   }, []);
 
   useEffect(() => {
-    console.log('⭐⭐⭐ ProductDetailModal renderizado ⭐⭐⭐');
-    if (isOpen) alert('Modal abierto - versión depuración');
-  }, [isOpen]);
-
-  useEffect(() => {
     if (!isOpen) return;
+
+    // Al abrir, guardar la posición actual del scroll
     scrollY.current = window.scrollY;
+
+    // Aplicar el bloqueo de scroll
     document.body.style.top = `-${scrollY.current}px`;
     document.body.classList.add('body-scroll-lock');
-    if (isIOS && modalRef.current) {
-      modalRef.current.classList.add('modal-ios-scroll');
+
+    // Aplicar estilos específicos al modal para iOS
+    if (modalRef.current) {
+      modalRef.current.classList.add('modal-content-scroll');
     }
+
     return () => {
+      // Al cerrar, restaurar todo
       document.body.classList.remove('body-scroll-lock');
       document.body.style.top = '';
+
+      // Restaurar la posición del scroll
       window.scrollTo(0, scrollY.current);
-      if (isIOS && modalRef.current) {
-        modalRef.current.classList.remove('modal-ios-scroll');
+
+      // Limpiar clases
+      if (modalRef.current) {
+        modalRef.current.classList.remove('modal-content-scroll');
       }
     };
-  }, [isOpen, isIOS, modalRef]);
+  }, [isOpen, modalRef]);
 
+  // Método mejorado para gestionar touchmove
   useEffect(() => {
-    if (!isOpen || !isIOS) return;
+    if (!isOpen) return;
+
+    // Función para manejar touchmove - VERSIÓN CORREGIDA
     const preventTouchMove = (e: TouchEvent) => {
       const target = e.target as Node;
       const modalContent = modalRef.current;
+
+      // Si el target está dentro del modal, permitimos el scroll normal
       if (modalContent && modalContent.contains(target)) {
-        const scrollableElement = findScrollableParent(target as HTMLElement);
-        if (scrollableElement && scrollableElement !== document.body) {
-          const { scrollTop, scrollHeight, clientHeight } = scrollableElement;
-          if (
-            (scrollTop <= 0 && e.touches[0].clientY > 0) ||
-            (scrollTop + clientHeight >= scrollHeight - 1 && e.touches[0].clientY < 0)
-          ) {
-            e.preventDefault();
-          }
-          return;
-        }
+        return; // Permitir scroll dentro del modal
       }
+
+      // Solo prevenir los eventos fuera del modal
       e.preventDefault();
     };
 
-    const findScrollableParent = (element: HTMLElement | null): HTMLElement | null => {
-      if (!element) return null;
-      const style = window.getComputedStyle(element);
-      const overflowY = style.getPropertyValue('overflow-y');
-      const isScrollable = overflowY !== 'visible' && overflowY !== 'hidden';
-      if (isScrollable && element.scrollHeight > element.clientHeight) return element;
-      return element.parentElement ? findScrollableParent(element.parentElement) : null;
-    };
-
-    document.addEventListener('touchmove', preventTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener('touchmove', preventTouchMove);
-    };
+    // Solo añadir el listener si es iOS
+    if (isIOS) {
+      document.addEventListener('touchmove', preventTouchMove, { passive: false });
+      return () => {
+        document.removeEventListener('touchmove', preventTouchMove);
+      };
+    }
   }, [isOpen, isIOS, modalRef]);
 };
 
@@ -153,12 +171,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOption[]>([]);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{[key: number]: string}>({});
   const [expandedOptions, setExpandedOptions] = useState<Record<number, boolean>>({});
   const [isHeaderCompact, setIsHeaderCompact] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  const [dragDistance, setDragDistance] = useState(0);
+  const [visualDragDistance, setVisualDragDistance] = useState(0);
   const [scrollPosition, setScrollPosition] = useState(0);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -166,43 +183,47 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const startY = useRef(0);
   const currentY = useRef(0);
   const isDragging = useRef(false);
+  const dragDistance = useRef(0);
 
+  // Activar el bloqueo de scroll mejorado
   useBodyScrollLock(isOpen, modalRef);
 
-  useEffect(() => {
-    if (!isOpen || !modalRef.current) return;
-    const modalEl = modalRef.current;
-    modalEl.style.overflowY = 'auto';
-    modalEl.style.webkitOverflowScrolling = 'touch';
-    modalEl.style.overscrollBehavior = 'contain';
-    modalEl.scrollTop = 0;
-  }, [isOpen]);
-
+  // Resetear la cantidad y opciones cuando se abre con un nuevo producto
   useEffect(() => {
     if (isOpen) {
       setQuantity(1);
-      setSelectedOptions([]);
-      setValidationError(null);
+      setVisualDragDistance(0);
+      dragDistance.current = 0;
       setScrollPosition(0);
       setIsHeaderCompact(false);
-      setDragDistance(0);
-      if (product.options) {
-        const initial = product.options.map(option => ({
-          optionId: option.id,
-          optionName: option.name,
-          items: [] as { id: number; name: string; price_addition: number }[],
+      setValidationErrors({});
+
+      // Inicializar las opciones seleccionadas
+      if (product.options && product.options.length > 0) {
+        const initialOptions: SelectedOption[] = product.options.map(option => ({
+          option_id: option.id,
+          option_name: option.name,
+          selected_items: []
         }));
-        setSelectedOptions(initial);
+        setSelectedOptions(initialOptions);
+
+        // Inicializar todas las opciones como expandidas
+        const expanded: Record<number, boolean> = {};
+        product.options.forEach(option => {
+          expanded[option.id] = true;
+        });
+        setExpandedOptions(expanded);
+      } else {
+        setSelectedOptions([]);
+        setExpandedOptions({});
       }
     }
   }, [isOpen, product.id, product.options]);
 
-  useEffect(() => {
-    console.log("DEBUG: Product options en el modal:", product.options);
-  }, [product.options]);
-
+  // Detectar el scroll para aplicar el header compacto
   useEffect(() => {
     if (!isOpen || !modalRef.current) return;
+
     const handleScroll = () => {
       if (modalRef.current) {
         const pos = modalRef.current.scrollTop;
@@ -210,230 +231,243 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         setIsHeaderCompact(pos > 120);
       }
     };
+
     const el = modalRef.current;
     el.addEventListener('scroll', handleScroll, { passive: true });
     return () => el.removeEventListener('scroll', handleScroll);
   }, [isOpen]);
 
+  // MEJORADO: Manejar swipe para cerrar desde cualquier parte del modal
   useEffect(() => {
-    if (!isOpen || !swipeHandleRef.current) return;
-    const swipeHandle = swipeHandleRef.current;
+    if (!isOpen || !modalRef.current) return;
+
+    const modal = modalRef.current;
+
     const handleTouchStart = (e: TouchEvent) => {
-      e.preventDefault();
-      startY.current = e.touches[0].clientY;
-      isDragging.current = true;
+      if (modal.scrollTop <= 0) {
+        startY.current = e.touches[0].clientY;
+        isDragging.current = true;
+      }
     };
+
     const handleTouchMove = (e: TouchEvent) => {
       if (!isDragging.current) return;
-      e.preventDefault();
+
       currentY.current = e.touches[0].clientY;
       const diff = currentY.current - startY.current;
-      if (diff > 0) {
+
+      // Solo permitir arrastrar hacia abajo cuando estamos en la parte superior
+      if (diff > 0 && modal.scrollTop <= 0) {
+        // Aplica resistencia para un efecto más natural
         const resistance = 0.6;
-        const transformY = Math.pow(diff, resistance);
-        setDragDistance(transformY);
-        setIsClosing(diff > 80);
+        dragDistance.current = Math.pow(diff, resistance);
+        setVisualDragDistance(dragDistance.current);
+
+        // Prevenir scroll del documento
+        e.preventDefault();
       }
     };
+
     const handleTouchEnd = () => {
       if (!isDragging.current) return;
+
       const diff = currentY.current - startY.current;
-      if (diff > 65) {
-        setDragDistance(window.innerHeight);
-        setTimeout(() => { onClose(); }, 300);
+      const velocity = Math.abs(diff) / 300; // Velocidad aproximada del gesto
+
+      // Si se ha arrastrado lo suficiente O el gesto fue rápido
+      if (diff > 80 || (diff > 30 && velocity > 0.5)) {
+        // Animar hacia abajo con la misma transición que la apertura
+        setVisualDragDistance(window.innerHeight);
+
+        // Cerrar después de la animación
+        setTimeout(() => {
+          onClose();
+        }, 350); // Tiempo similar a la animación de apertura
       } else {
-        setDragDistance(0);
-        setIsClosing(false);
+        // Volver a la posición original
+        setVisualDragDistance(0);
+        dragDistance.current = 0;
       }
+
       isDragging.current = false;
     };
-    const handleTouchCancel = () => {
-      setDragDistance(0);
-      setIsClosing(false);
-      isDragging.current = false;
-    };
-    swipeHandle.addEventListener('touchstart', handleTouchStart, { passive: false });
-    swipeHandle.addEventListener('touchmove', handleTouchMove, { passive: false });
-    swipeHandle.addEventListener('touchend', handleTouchEnd, { passive: true });
-    swipeHandle.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+
+    modal.addEventListener('touchstart', handleTouchStart, { passive: true });
+    modal.addEventListener('touchmove', handleTouchMove, { passive: false });
+    modal.addEventListener('touchend', handleTouchEnd, { passive: true });
+
     return () => {
-      swipeHandle.removeEventListener('touchstart', handleTouchStart);
-      swipeHandle.removeEventListener('touchmove', handleTouchMove);
-      swipeHandle.removeEventListener('touchend', handleTouchEnd);
-      swipeHandle.removeEventListener('touchcancel', handleTouchCancel);
+      modal.removeEventListener('touchstart', handleTouchStart);
+      modal.removeEventListener('touchmove', handleTouchMove);
+      modal.removeEventListener('touchend', handleTouchEnd);
     };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
   const formatPrice = (price: number) => {
-    const num = typeof price === 'number' ? price : 0;
-    try {
-      return '$' + num.toLocaleString('es-CL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).replace('.', ',');
-    } catch {
-      return '$' + num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    }
+    return price.toLocaleString('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).replace('CLP', '$').replace('.', ',');
   };
 
-  const calculateAdditionalPrice = () => {
-    if (!product.options) return 0;
-    let add = 0;
-    selectedOptions.forEach(selOpt => {
-      selOpt.items.forEach(item => {
-        add += Number(item.price_addition) || 0;
+  // Calcular el precio adicional por opciones seleccionadas
+  const calculateOptionsPrice = () => {
+    let additionalPrice = 0;
+
+    selectedOptions.forEach(option => {
+      option.selected_items.forEach(item => {
+        additionalPrice += item.price_addition;
       });
     });
-    return add;
+
+    return additionalPrice;
   };
 
-  const additionalPrice = calculateAdditionalPrice();
-  const totalPrice = (product.price || 0) * quantity + additionalPrice * quantity;
+  // Calcular el precio total
+  const totalPrice = (product.price || 0) * quantity + calculateOptionsPrice() * quantity;
 
+  // Verificar si un item está seleccionado
   const isItemSelected = (optionId: number, itemId: number): boolean => {
-    const selOpt = selectedOptions.find(o => o.optionId === optionId);
-    if (!selOpt) return false;
-    return selOpt.items.some(it => it.id === itemId);
+    const option = selectedOptions.find(opt => opt.option_id === optionId);
+    if (!option) return false;
+
+    return option.selected_items.some(item => item.item_id === itemId);
   };
 
+  // Función para manejar la selección de opciones
   const handleOptionSelect = (option: ProductOption, item: OptionItem) => {
-    setSelectedOptions(prev => {
-      const index = prev.findIndex(o => o.optionId === option.id);
-      if (index < 0) {
-        return [
-          ...prev,
-          { optionId: option.id, optionName: option.name, items: [{ id: item.id, name: item.name, price_addition: item.price_addition }] },
-        ];
-      }
-      const updated = [...prev];
-      const existing = updated[index];
-      const itemIndex = existing.items.findIndex(i => i.id === item.id);
-      if (option.multiple) {
-        if (itemIndex >= 0) {
-          existing.items = existing.items.filter(i => i.id !== item.id);
+    // Verificar si el ítem tiene una etiqueta que desactiva la selección (ej. "Agotado")
+    const hasDisableTag = item.tags?.some(tag => tag.disableSelection);
+
+    if (hasDisableTag) {
+      // No permitir selección y posiblemente mostrar un mensaje
+      return;
+    }
+
+    setSelectedOptions(prevSelected => {
+      const updatedOptions = [...prevSelected];
+      const optionIndex = updatedOptions.findIndex(opt => opt.option_id === option.id);
+
+      if (optionIndex >= 0) {
+        const currentOption = updatedOptions[optionIndex];
+
+        // Si no es múltiple, reemplazar la selección
+        if (!option.multiple) {
+          updatedOptions[optionIndex] = {
+            ...currentOption,
+            selected_items: [{
+              item_id: item.id,
+              item_name: item.name,
+              price_addition: item.price_addition
+            }]
+          };
         } else {
-          if (!option.max_selections || existing.items.length < option.max_selections) {
-            existing.items = [...existing.items, { id: item.id, name: item.name, price_addition: item.price_addition }];
+          // Si es múltiple, verificar si ya está seleccionado
+          const itemIndex = currentOption.selected_items.findIndex(
+            i => i.item_id === item.id
+          );
+
+          // Si ya está seleccionado, quitarlo
+          if (itemIndex >= 0) {
+            const updatedItems = [...currentOption.selected_items];
+            updatedItems.splice(itemIndex, 1);
+            updatedOptions[optionIndex] = {
+              ...currentOption,
+              selected_items: updatedItems
+            };
+          } else {
+            // Si no está seleccionado, agregarlo si no supera el máximo
+            if (!option.max_selections ||
+                currentOption.selected_items.length < option.max_selections) {
+              updatedOptions[optionIndex] = {
+                ...currentOption,
+                selected_items: [
+                  ...currentOption.selected_items,
+                  {
+                    item_id: item.id,
+                    item_name: item.name,
+                    price_addition: item.price_addition
+                  }
+                ]
+              };
+            } else {
+              // Si excede el máximo, mostrar error
+              setValidationErrors(prev => ({
+                ...prev,
+                [option.id]: `Máximo ${option.max_selections} seleccion${option.max_selections === 1 ? '' : 'es'}`
+              }));
+              return prevSelected;
+            }
           }
         }
-      } else {
-        if (itemIndex >= 0) {
-          existing.items = [];
-        } else {
-          existing.items = [{ id: item.id, name: item.name, price_addition: item.price_addition }];
+
+        // Limpiar error si existe
+        if (validationErrors[option.id]) {
+          setValidationErrors(prev => {
+            const newErrors = {...prev};
+            delete newErrors[option.id];
+            return newErrors;
+          });
         }
       }
-      updated[index] = existing;
-      return updated;
+
+      return updatedOptions;
     });
-    setValidationError(null);
   };
 
+  // Alternar la expansión de una opción
   const toggleOption = (optionId: number) => {
-    setExpandedOptions(prev => ({ ...prev, [optionId]: !prev[optionId] }));
+    setExpandedOptions(prev => ({
+      ...prev,
+      [optionId]: !prev[optionId]
+    }));
   };
 
-  const validateRequiredOptions = (): boolean => {
-    if (!product.options) return true;
-    const required = product.options.filter(opt => opt.required);
-    for (const opt of required) {
-      const found = selectedOptions.find(o => o.optionId === opt.id);
-      if (!found || found.items.length === 0) {
-        setValidationError(`Por favor selecciona una opción de "${opt.name}"`);
-        setExpandedOptions(prev => ({ ...prev, [opt.id]: true }));
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const handleAddToCart = () => {
-    if (!validateRequiredOptions()) return;
-    const filled = selectedOptions.filter(o => o.items.length > 0);
-    setTimeout(() => {
-      onAddToCart({ ...product, quantity }, quantity, filled);
-      onClose();
-    }, 200);
-  };
-
+  // Verificar si una opción tiene items seleccionados
   const isOptionCompleted = (optionId: number): boolean => {
-    const selOpt = selectedOptions.find(o => o.optionId === optionId);
-    return !!selOpt && selOpt.items.length > 0;
+    const option = selectedOptions.find(opt => opt.option_id === optionId);
+    return !!option && option.selected_items.length > 0;
   };
 
-  const renderItemQuantityControl = (
-    itemId: number,
-    optionId: number,
-    itemName: string,
-    price: number,
-    multiple: boolean
-  ) => {
-    const selOpt = selectedOptions.find(o => o.optionId === optionId);
-    const count = selOpt ? selOpt.items.filter(i => i.id === itemId).length : 0;
-    if (count === 0) {
-      return (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={e => {
-            e.stopPropagation();
-            handleOptionSelect(
-              { id: optionId, name: '', required: false, multiple, items: [] },
-              { id: itemId, name: itemName, price_addition: price, available: true }
-            );
-          }}
-          className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-gray-300 shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-colors"
-        >
-          <Plus size={20} className="text-gray-700" />
-        </motion.button>
-      );
+  // Validar que todas las opciones requeridas estén seleccionadas
+  const validateOptions = () => {
+    const errors: {[key: number]: string} = {};
+    let isValid = true;
+
+    if (product.options) {
+      product.options.forEach(option => {
+        if (option.required) {
+          const selectedOption = selectedOptions.find(o => o.option_id === option.id);
+          if (!selectedOption || selectedOption.selected_items.length === 0) {
+            errors[option.id] = `Por favor selecciona una opción de "${option.name}"`;
+            isValid = false;
+            // Expandir la opción con error
+            setExpandedOptions(prev => ({ ...prev, [option.id]: true }));
+          }
+        }
+      });
     }
-    if (!multiple || count === 1) {
-      return (
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={e => {
-            e.stopPropagation();
-            handleOptionSelect(
-              { id: optionId, name: '', required: false, multiple, items: [] },
-              { id: itemId, name: itemName, price_addition: price, available: true }
-            );
-          }}
-          className="w-9 h-9 rounded-full bg-white flex items-center justify-center border border-gray-300 shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-colors"
-        >
-          <Trash2 size={18} className="text-gray-700" />
-        </motion.button>
-      );
+
+    setValidationErrors(errors);
+    return isValid;
+  };
+
+  // Manejar la adición al carrito
+  const handleAddToCart = () => {
+    if (validateOptions()) {
+      const productWithOptions = {
+        ...product,
+        selected_options: selectedOptions,
+        quantity
+      };
+
+      onAddToCart(productWithOptions, quantity, selectedOptions);
+      onClose();
     }
-    return (
-      <div className="flex items-center h-10 rounded-full bg-white border border-gray-300 overflow-hidden shadow-sm">
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={e => {
-            e.stopPropagation();
-            handleOptionSelect(
-              { id: optionId, name: '', required: false, multiple, items: [] },
-              { id: itemId, name: itemName, price_addition: price, available: true }
-            );
-          }}
-          className="w-10 h-full flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
-        >
-          <Minus size={18} className="text-gray-700" />
-        </motion.button>
-        <span className="w-8 text-center font-medium">{count}</span>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={e => {
-            e.stopPropagation();
-            handleOptionSelect(
-              { id: optionId, name: '', required: false, multiple, items: [] },
-              { id: itemId, name: itemName, price_addition: price, available: true }
-            );
-          }}
-          className="w-10 h-full flex items-center justify-center hover:bg-gray-50 active:bg-gray-100 transition-colors"
-        >
-          <Plus size={18} className="text-gray-700" />
-        </motion.button>
-      </div>
-    );
   };
 
   return (
@@ -444,7 +478,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-end justify-center backdrop-blur-[1px]"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
+          style={{
+            background: 'rgba(255,255,255,0.05)',
+            touchAction: 'none'
+          }}
           onClick={onClose}
         >
           <motion.div
@@ -453,24 +490,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 40, stiffness: 400 }}
-            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto scrollbar-hide modal-ios-scroll"
+            className="bg-white rounded-t-2xl w-full max-w-md h-[90vh] overflow-y-auto modal-content-scroll"
             onClick={e => e.stopPropagation()}
             style={{
               boxShadow: '0px -4px 20px rgba(0, 0, 0, 0.1)',
-              overscrollBehavior: 'contain',
-              transform: dragDistance > 0 ? `translateY(${dragDistance}px)` : 'translateY(0)',
-              transition: dragDistance === 0 ? 'transform 0.3s ease-out' : 'none'
+              transform: visualDragDistance > 0 ? `translateY(${visualDragDistance}px)` : 'translateY(0)',
+              transition: visualDragDistance === 0 ? 'transform 0.3s ease-out' : 'none',
+              opacity: visualDragDistance > 0 ? Math.max(0.75, 1 - visualDragDistance / 500) : 1,
             }}
           >
-            {/* Área de swipe */}
-            <div
-              ref={swipeHandleRef}
-              className="absolute top-0 left-0 w-full h-24 z-60 pointer-events-auto"
-              style={{ cursor: 'grab', touchAction: 'none' }}
-            >
-              <div className="w-full flex justify-center pt-2 pb-1">
-                <div className="w-16 h-1.5 bg-gray-400 rounded-full" />
-              </div>
+            {/* Indicador visual de swipe mejorado */}
+            <div className="pt-2 pb-1">
+              <div
+                ref={swipeHandleRef}
+                className={`swipe-indicator ${dragDistance.current > 40 ? 'closing' : ''}`}
+              ></div>
             </div>
 
             {/* Header flotante */}
@@ -615,6 +649,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Mostrar mensaje de error si existe */}
+                  {validationErrors[option.id] && expandedOptions[option.id] && (
+                    <p className="text-sm text-red-500 px-5 mb-2">
+                      {validationErrors[option.id]}
+                    </p>
+                  )}
+
                   <AnimatePresence>
                     {expandedOptions[option.id] && (
                       <motion.div
@@ -625,78 +666,108 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         className="px-5 overflow-hidden"
                       >
                         <div className="pb-4 space-y-1">
-                          {option.items.map(item => (
-                            <motion.div
-                              key={item.id}
-                              initial={{ opacity: 0, y: 5 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              className={`flex items-center justify-between py-3 px-3 rounded-xl ${
-                                isItemSelected(option.id, item.id)
-                                  ? 'bg-green-50 border border-green-100'
-                                  : 'border border-gray-100 hover:border-gray-200'
-                              }`}
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="relative flex-shrink-0">
-                                  {item.image_url ? (
-                                    <Image
-                                      src={item.image_url}
-                                      alt={item.name}
-                                      width={56}
-                                      height={56}
-                                      style={{ objectFit: 'cover' }}
-                                      className="rounded-lg"
-                                    />
-                                  ) : (
-                                    <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">
-                                      <span className="text-gray-400 text-xs">Sin imagen</span>
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex flex-grow flex-col">
-                                  <span className="text-lg font-medium text-gray-800">{item.name}</span>
-                                  {item.price_addition > 0 && (
-                                    <span className="text-gray-500">{formatPrice(item.price_addition)}</span>
-                                  )}
-                                </div>
-                                {/* Contenedor de etiquetas a la derecha */}
-                                {item.tags && item.tags.length > 0 && (
-                                  <div className="flex gap-1">
-                                    {item.tags.map((tag: any) => (
-                                      <Tag
-                                        key={tag.id}
-                                        name={tag.name}
-                                        color={tag.color}
-                                        textColor={tag.textColor || '#FFFFFF'}
-                                        discount={tag.discount}
-                                        size="xs"
-                                      />
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
+                          {option.items.map(item => {
+                            // Verificar si el item tiene etiqueta que desactiva selección
+                            const isDisabled = item.tags?.some(tag => tag.disableSelection);
+
+                            return (
                               <motion.div
-                                whileTap={{ scale: 0.95 }}
-                                className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                key={item.id}
+                                initial={{ opacity: 0, y: 5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className={`flex items-center justify-between py-3 px-3 rounded-xl ${
                                   isItemSelected(option.id, item.id)
-                                    ? 'border-green-500 bg-white'
-                                    : 'border-gray-300'
-                                }`}
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  handleOptionSelect(option, item);
+                                    ? 'bg-green-50 border border-green-100'
+                                    : 'border border-gray-100 hover:border-gray-200'
+                                } ${isDisabled ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                                onClick={() => {
+                                  if (!isDisabled) {
+                                    handleOptionSelect(option, item);
+                                  }
                                 }}
                               >
-                                {isItemSelected(option.id, item.id) && (
-                                  <motion.div
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
-                                    className="w-3 h-3 rounded-full bg-green-500"
-                                  />
-                                )}
+                                <div className="flex items-center gap-3">
+                                  <div className="relative flex-shrink-0">
+                                    {/* Imagen del item */}
+                                    {item.image_url ? (
+                                      <Image
+                                        src={item.image_url}
+                                        alt={item.name}
+                                        width={56}
+                                        height={56}
+                                        style={{ objectFit: 'cover' }}
+                                        className="rounded-lg"
+                                      />
+                                    ) : (
+                                      <div className="w-14 h-14 bg-gray-100 rounded-lg flex items-center justify-center">
+                                        <span className="text-gray-400 text-xs">Sin imagen</span>
+                                      </div>
+                                    )}
+
+                                    {/* Etiquetas sobre la imagen */}
+                                    {item.tags && item.tags.length > 0 && (
+                                      <div className="absolute top-0 right-0">
+                                        {item.tags
+                                          .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+                                          .slice(0, 2) // Mostrar máximo 2 etiquetas
+                                          .map(tag => (
+                                            <Tag
+                                              key={tag.id}
+                                              name={tag.name}
+                                              color={tag.color}
+                                              textColor={tag.textColor}
+                                              discount={tag.discount}
+                                              size="sm"
+                                              className="m-1"
+                                            />
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex flex-grow flex-col">
+                                    <span className="text-lg font-medium text-gray-800">{item.name}</span>
+                                    {item.price_addition > 0 && (
+                                      <span className="text-gray-500">{formatPrice(item.price_addition)}</span>
+                                    )}
+
+                                    {/* Etiqueta de "Sugerido" si corresponde */}
+                                    {item.tags?.some(tag => tag.isRecommended) && (
+                                      <span className="inline-block px-1.5 py-0.5 bg-green-100 text-green-800 text-xs rounded-full mt-1">
+                                        Sugerido
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Indicador de selección */}
+                                <motion.div
+                                  whileTap={{ scale: 0.95 }}
+                                  className={`${
+                                    isDisabled ? 'opacity-50' : ''
+                                  } ${
+                                    option.multiple
+                                      ? `w-6 h-6 border ${isItemSelected(option.id, item.id) ? 'bg-black border-black' : 'border-gray-300'} rounded-md flex items-center justify-center`
+                                      : `w-6 h-6 border ${isItemSelected(option.id, item.id) ? 'border-2 border-black' : 'border-gray-300'} rounded-full flex items-center justify-center`
+                                  }`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (!isDisabled) {
+                                      handleOptionSelect(option, item);
+                                    }
+                                  }}
+                                >
+                                  {option.multiple && isItemSelected(option.id, item.id) && (
+                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                  )}
+                                  {!option.multiple && isItemSelected(option.id, item.id) && (
+                                    <div className="w-3 h-3 bg-black rounded-full"></div>
+                                  )}
+                                </motion.div>
                               </motion.div>
-                            </motion.div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </motion.div>
                     )}
@@ -704,7 +775,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </motion.div>
               ))}
 
-              {/* Sección de complementos */}
+              {/* Sección de complementos (opcional) */}
               <motion.div
                 className="bg-white"
                 initial={{ opacity: 0, y: 10 }}
@@ -746,37 +817,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                             <div className="w-14 h-14 bg-gray-100 rounded-lg mr-3 overflow-hidden">
                               <img
                                 src="/api/placeholder/60/60"
-                                alt="Milanesa Napolitana"
+                                alt="Complemento 1"
                                 className="w-full h-full object-cover"
                               />
                             </div>
                             <div>
-                              <span className="text-lg font-medium text-gray-800">Milanesa Napolitana</span>
-                              <div className="text-gray-500">+ {formatPrice(15500)}</div>
+                              <span className="text-lg font-medium text-gray-800">Complemento 1</span>
+                              <div className="text-gray-500">+ {formatPrice(10000)}</div>
                             </div>
                           </div>
-                          {renderItemQuantityControl(1001, 1000, 'Milanesa Napolitana', 15500, true)}
-                        </motion.div>
-                        <motion.div
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.05 }}
-                          className="flex items-center justify-between py-3 px-3 rounded-xl border border-gray-100 hover:border-gray-200"
-                        >
-                          <div className="flex items-center">
-                            <div className="w-14 h-14 bg-gray-100 rounded-lg mr-3 overflow-hidden">
-                              <img
-                                src="/api/placeholder/60/60"
-                                alt="Pizza Mediana de Muzzarella"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <div>
-                              <span className="text-lg font-medium text-gray-800">Pizza Mediana de Muzzarella</span>
-                              <div className="text-gray-500">+ {formatPrice(15500)}</div>
-                            </div>
-                          </div>
-                          {renderItemQuantityControl(1002, 1000, 'Pizza Mediana de Muzzarella', 15500, true)}
+                          {/* Control de cantidad para complementos */}
+                          <motion.div
+                            whileTap={{ scale: 0.95 }}
+                            className={`w-6 h-6 border ${isItemSelected(9999, 1001) ? 'bg-black border-black' : 'border-gray-300'} rounded-md flex items-center justify-center`}
+                            onClick={() => {
+                              // Manejar la selección del complemento
+                              handleOptionSelect(
+                                { id: 9999, name: 'Complementos', required: false, multiple: true, items: [] },
+                                { id: 1001, name: 'Complemento 1', price_addition: 10000, available: true }
+                              );
+                            }}
+                          >
+                            {isItemSelected(9999, 1001) && (
+                              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                              </svg>
+                            )}
+                          </motion.div>
                         </motion.div>
                       </div>
                     </motion.div>
@@ -785,8 +852,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               </motion.div>
             </div>
 
+            {/* Mostrar errores de validación */}
             <AnimatePresence>
-              {validationError && (
+              {Object.keys(validationErrors).length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -806,12 +874,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         clipRule="evenodd"
                       />
                     </svg>
-                    {validationError}
+                    {Object.values(validationErrors)[0]}
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
+            {/* Botones de control de cantidad y agregar al carrito */}
             <div className="px-5 py-4 flex items-center justify-between sticky bottom-0 bg-white border-t border-gray-100 shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.05)] z-30">
               <motion.div
                 whileHover={{ scale: 1.02 }}
@@ -844,15 +913,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <span className="font-bold">{formatPrice(totalPrice)}</span>
               </motion.button>
             </div>
-
-            {isClosing && (
-              <div className="absolute inset-0 bg-black bg-opacity-20 pointer-events-none flex flex-col items-center justify-start pt-16 z-50">
-                <ChevronDown size={48} className="text-white drop-shadow-lg" />
-                <span className="text-white text-base font-medium mt-2 drop-shadow-lg">
-                  Suelta para cerrar
-                </span>
-              </div>
-            )}
           </motion.div>
         </motion.div>
       )}
