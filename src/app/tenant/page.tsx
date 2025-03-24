@@ -99,7 +99,7 @@ export default function TenantLandingPage() {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Estados para UI
-  const [useModalView, setUseModalView] = useState(false); // Determina qué tipo de visualización usar
+  const [useModalView, setUseModalView] = useState(true); // Determina qué tipo de visualización usar
 
   // Estados y refs para scroll sincronizado
   const [visibleCategory, setVisibleCategory] = useState<number | null>(null);

@@ -1,5 +1,6 @@
 // src/components/ui/Tag.tsx
 import React from 'react';
+import { Lightbulb } from 'lucide-react';
 
 interface TagProps {
   name: string;
@@ -7,7 +8,8 @@ interface TagProps {
   textColor?: string;
   discount?: number;
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg';
+  isRecommended?: boolean;
 }
 
 export const Tag: React.FC<TagProps> = ({
@@ -16,27 +18,35 @@ export const Tag: React.FC<TagProps> = ({
   textColor = '#FFFFFF',
   discount,
   className = '',
-  size = 'md'
+  size = 'sm',
+  isRecommended = false,
 }) => {
-  // Tamaños predefinidos
+  // Clases de tamaño definidas con Tailwind
   const sizeClasses = {
-    sm: 'text-xs px-1.5 py-0.5',
-    md: 'text-sm px-2 py-1',
-    lg: 'text-base px-3 py-1.5'
+    xs: 'text-xs px-2 py-0.5',
+    sm: 'text-sm px-3 py-1',
+    md: 'text-base px-4 py-2',
+    lg: 'text-lg px-5 py-2.5',
   };
 
-  // Si hay descuento, mostrar el porcentaje
+  // Si hay descuento, se muestra ese valor; de lo contrario, se muestra el nombre
   const displayText = discount ? `${discount}% OFF` : name;
 
   return (
-    <div
-      className={`inline-flex items-center rounded-md font-medium ${sizeClasses[size]} ${className}`}
+    <span
+      className={`inline-flex items-center rounded-full font-semibold shadow-sm border border-transparent ${sizeClasses[size]} ${className}`}
       style={{
-        backgroundColor: color,
-        color: textColor
+        backgroundImage: `linear-gradient(135deg, ${color} 0%, ${color} 100%)`,
+        color: textColor,
       }}
     >
+      {isRecommended && (
+        <Lightbulb
+          size={size === 'xs' ? 12 : size === 'sm' ? 14 : size === 'md' ? 16 : 18}
+          className="mr-1"
+        />
+      )}
       {displayText}
-    </div>
+    </span>
   );
 };
