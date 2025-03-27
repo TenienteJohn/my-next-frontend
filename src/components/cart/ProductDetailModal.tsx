@@ -650,8 +650,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                         <motion.span
                           initial={{ scale: 0 }}
                           animate={{ scale: 1 }}
-                          className="bg-green-500 text-white text-sm px-3 py-1 rounded-full mr-3 shadow-sm font-medium"
+                          className="text-green-600 text-xs px-2 py-0.5 rounded-full mr-2 bg-green-50 border border-green-100 font-medium flex items-center"
                         >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="h-3 w-3 mr-0.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
                           Listo
                         </motion.span>
                       )}

@@ -326,7 +326,7 @@ export default function ProductsManagement() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      let updatedProduct = response.data.product || response.data;
+      const updatedProduct = response.data.product || response.data;
 
       // Subir imagen si existe
       if (selectedFile) {
@@ -622,6 +622,7 @@ export default function ProductsManagement() {
                     {/* Selector de etiquetas para productos */}
                     <div className="mb-4">
                       <ProductTagSelector
+                        productId={formMode === 'edit' ? currentProduct.id : undefined}
                         selectedTags={currentProduct.tags || []}
                         onChange={(tags) => setCurrentProduct({ ...currentProduct, tags })}
                       />
