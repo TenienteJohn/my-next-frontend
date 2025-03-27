@@ -90,6 +90,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [showSummary, setShowSummary] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
+  // Nuevas variables para controlar el touch
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const isScrollingRef = useRef(false);
+
   // Datos de ejemplo para tiendas (en una app real vendrían de la base de datos)
   const storeLocations: StoreLocation[] = [
     {
@@ -204,6 +210,63 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setDeliveryAddress(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Manejadores de eventos touch para el resumen (NUEVOS)
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // Guardar la posición inicial del toque
+    touchStartRef.current = {
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    };
+
+    // Iniciar un temporizador para determinar si es un toque rápido
+    touchTimeoutRef.current = setTimeout(() => {
+      touchTimeoutRef.current = null;
+    }, 200); // 200ms es un buen umbral para distinguir entre tap y scroll
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Si hay un toque inicial registrado
+    if (touchStartRef.current) {
+      const touchMove = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY
+      };
+
+      // Calcular la distancia del movimiento
+      const deltaY = Math.abs(touchMove.y - touchStartRef.current.y);
+
+      // Si el movimiento vertical es significativo, se considera scroll
+      if (deltaY > 10) {
+        isScrollingRef.current = true;
+
+        // Limpiar el timeout si existe
+        if (touchTimeoutRef.current) {
+          clearTimeout(touchTimeoutRef.current);
+          touchTimeoutRef.current = null;
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    // Restablecer las referencias
+    touchStartRef.current = null;
+    isScrollingRef.current = false;
+
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+  };
+
+  // Función segura para alternar el resumen
+  const toggleSummary = () => {
+    // Solo alternar si no se estaba desplazando
+    if (!isScrollingRef.current) {
+      setShowSummary(!showSummary);
+    }
   };
 
   // Validar el formulario
@@ -399,12 +462,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Botón para mostrar/ocultar resumen en mobile */}
+      {/* Botón para mostrar/ocultar resumen en mobile - MODIFICADO */}
       {isMobile && (
         <div className="sticky top-[100px] z-40 px-4 mb-2">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowSummary(!showSummary)}
+            onClick={toggleSummary}  // Usar la función segura en lugar de alternar directamente
             className="w-full bg-white shadow-md rounded-xl p-3 flex items-center justify-between"
           >
             <div className="flex items-center">
@@ -899,7 +962,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             </motion.div>
           </div>
 
-          {/* Columna derecha - Resumen del pedido */}
+          {/* Columna derecha - Resumen del pedido - MODIFICADO */}
           <div className="md:col-span-5">
             <AnimatePresence>
               {showSummary && (
@@ -908,6 +971,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
                   className="bg-white p-6 rounded-xl shadow-sm md:sticky md:top-24"
+                  ref={summaryRef}
+                  // Eventos touch para el contenedor del resumen
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
                 >
                   <h2 className="text-xl font-bold mb-4 flex items-center">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -931,8 +999,15 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     )}
                   </div>
 
-                  {/* Lista de productos */}
-                  <div className="py-4 max-h-60 overflow-y-auto hide-scrollbar">
+                  {/* Lista de productos - Con scroll independiente */}
+                  <div
+                    className="py-4 max-h-60 overflow-y-auto hide-scrollbar"
+                    // Aseguramos que el scroll dentro del resumen no afecte al estado
+                    onTouchStart={(e) => {
+                      // Prevenir que los eventos de scroll afecten al toggle
+                      e.stopPropagation();
+                    }}
+                  >
                     {items.map((item, index) => (
                       <motion.div
                         key={index}
