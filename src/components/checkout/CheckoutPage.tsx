@@ -90,12 +90,6 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [showSummary, setShowSummary] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Nuevas variables para controlar el touch
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-  const touchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const summaryRef = useRef<HTMLDivElement>(null);
-  const isScrollingRef = useRef(false);
-
   // Datos de ejemplo para tiendas (en una app real vendrían de la base de datos)
   const storeLocations: StoreLocation[] = [
     {
@@ -210,63 +204,6 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setDeliveryAddress(prev => ({ ...prev, [name]: value }));
-  };
-
-  // Manejadores de eventos touch para el resumen (NUEVOS)
-  const handleTouchStart = (e: React.TouchEvent) => {
-    // Guardar la posición inicial del toque
-    touchStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
-    };
-
-    // Iniciar un temporizador para determinar si es un toque rápido
-    touchTimeoutRef.current = setTimeout(() => {
-      touchTimeoutRef.current = null;
-    }, 200); // 200ms es un buen umbral para distinguir entre tap y scroll
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    // Si hay un toque inicial registrado
-    if (touchStartRef.current) {
-      const touchMove = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY
-      };
-
-      // Calcular la distancia del movimiento
-      const deltaY = Math.abs(touchMove.y - touchStartRef.current.y);
-
-      // Si el movimiento vertical es significativo, se considera scroll
-      if (deltaY > 10) {
-        isScrollingRef.current = true;
-
-        // Limpiar el timeout si existe
-        if (touchTimeoutRef.current) {
-          clearTimeout(touchTimeoutRef.current);
-          touchTimeoutRef.current = null;
-        }
-      }
-    }
-  };
-
-  const handleTouchEnd = () => {
-    // Restablecer las referencias
-    touchStartRef.current = null;
-    isScrollingRef.current = false;
-
-    if (touchTimeoutRef.current) {
-      clearTimeout(touchTimeoutRef.current);
-      touchTimeoutRef.current = null;
-    }
-  };
-
-  // Función segura para alternar el resumen
-  const toggleSummary = () => {
-    // Solo alternar si no se estaba desplazando
-    if (!isScrollingRef.current) {
-      setShowSummary(!showSummary);
-    }
   };
 
   // Validar el formulario
@@ -467,7 +404,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         <div className="sticky top-[100px] z-40 px-4 mb-2">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={toggleSummary}  // Usar la función segura en lugar de alternar directamente
+            onClick={() => setShowSummary(!showSummary)}
             className="w-full bg-white shadow-md rounded-xl p-3 flex items-center justify-between"
           >
             <div className="flex items-center">
@@ -971,21 +908,44 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
                   className="bg-white p-6 rounded-xl shadow-sm md:sticky md:top-24"
-                  ref={summaryRef}
-                  // Eventos touch para el contenedor del resumen
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
+                  style={{
+                    touchAction: 'pan-y', // Permitir scroll vertical pero desactivar gestos horizontales
+                    WebkitOverflowScrolling: 'touch' // Mejorar scroll en iOS
+                  }}
                 >
-                  <h2 className="text-xl font-bold mb-4 flex items-center">
+                  {/* Contenedor para prevenir eventos de swipe accidentales */}
+                  <div
+                    className="absolute inset-0 bg-transparent z-10"
+                    onClick={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onTouchMove={(e) => e.stopPropagation()}
+                    onTouchEnd={(e) => e.stopPropagation()}
+                    style={{ pointerEvents: 'none' }}
+                  />
+
+                  <h2 className="text-xl font-bold mb-4 flex items-center relative z-20">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
                     Resumen del pedido
+
+                    {/* Botón de cerrar visible solo en móviles */}
+                    {isMobile && (
+                      <button
+                        type="button"
+                        onClick={() => setShowSummary(false)}
+                        className="ml-auto text-gray-400 hover:text-gray-600 p-1 relative z-20"
+                        style={{ pointerEvents: 'auto' }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    )}
                   </h2>
 
                   {/* Modo de entrega */}
-                  <div className="flex items-center py-3 border-b border-gray-100">
+                  <div className="flex items-center py-3 border-b border-gray-100 relative z-20">
                     {deliveryMethod === 'delivery' ? (
                       <>
                         <Truck size={20} className="text-green-500 mr-2" />
@@ -1001,11 +961,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
                   {/* Lista de productos - Con scroll independiente */}
                   <div
-                    className="py-4 max-h-60 overflow-y-auto hide-scrollbar"
-                    // Aseguramos que el scroll dentro del resumen no afecte al estado
-                    onTouchStart={(e) => {
-                      // Prevenir que los eventos de scroll afecten al toggle
-                      e.stopPropagation();
+                    className="py-4 max-h-60 overflow-y-auto relative z-20"
+                    style={{
+                      touchAction: 'pan-y', // Permitir solo desplazamiento vertical
+                      pointerEvents: 'auto', // Habilitar interacciones
+                      WebkitOverflowScrolling: 'touch' // Suavizar scroll en iOS
                     }}
                   >
                     {items.map((item, index) => (
@@ -1063,7 +1023,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
                   {/* Costos con animación */}
                   <motion.div
-                    className="space-y-2 py-4 border-t border-b border-gray-100"
+                    className="space-y-2 py-4 border-t border-b border-gray-100 relative z-20"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 0.2 }}
@@ -1093,7 +1053,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
                   {/* Total */}
                   <motion.div
-                    className="flex justify-between pt-4 pb-2"
+                    className="flex justify-between pt-4 pb-2 relative z-20"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.3 }}
@@ -1103,7 +1063,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   </motion.div>
 
                   {/* Acuerdo de términos */}
-                  <div className="mt-4 mb-6 text-xs text-gray-500">
+                  <div className="mt-4 mb-6 text-xs text-gray-500 relative z-20">
                     Al realizar esta compra, aceptas nuestros <a href="#" className="text-green-600 underline">Términos y Condiciones</a> y <a href="#" className="text-green-600 underline">Política de Privacidad</a>.
                   </div>
                 </motion.div>
