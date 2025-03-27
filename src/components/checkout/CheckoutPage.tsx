@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, CreditCard, MapPin, Store, Calendar, Clock, User, Phone, Home, MapPinned, Truck, Check, AlertCircle, DollarSign, Banknote, ShieldCheck, ChevronDown } from 'lucide-react';
+import { NoSwipeModal } from '@/components/ui/NoSwipeModal'; // Importar el nuevo componente
 
 // Interfaces para las opciones de producto (reutilizadas del carrito)
 interface OptionItem {
@@ -89,6 +90,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [isStoreDropdownOpen, setIsStoreDropdownOpen] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [showSummaryModal, setShowSummaryModal] = useState(false);
 
   // Datos de ejemplo para tiendas (en una app real vendrían de la base de datos)
   const storeLocations: StoreLocation[] = [
@@ -323,6 +325,124 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   // Obtener la tienda seleccionada
   const selectedStore = storeLocations.find(store => store.id === selectedStoreId);
 
+  // Componente para el resumen en un modal
+  const OrderSummaryContent = () => (
+    <div className="px-4 py-3">
+      <h2 className="text-xl font-bold mb-4 flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        Resumen del pedido
+      </h2>
+
+      {/* Modo de entrega */}
+      <div className="flex items-center py-3 border-b border-gray-100">
+        {deliveryMethod === 'delivery' ? (
+          <>
+            <Truck size={20} className="text-green-500 mr-2" />
+            <span className="font-medium">Envío a domicilio</span>
+          </>
+        ) : (
+          <>
+            <Store size={20} className="text-green-500 mr-2" />
+            <span className="font-medium">Retiro en tienda</span>
+          </>
+        )}
+      </div>
+
+      {/* Lista de productos */}
+      <div className="py-4 max-h-60 overflow-y-auto hide-scrollbar">
+        {items.map((item, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: index * 0.05 }}
+            className="flex py-2 first:pt-0 last:pb-0"
+          >
+            <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-3 flex-shrink-0">
+              {item.image_url ? (
+                <Image
+                  src={item.image_url}
+                  alt={item.name}
+                  width={48}
+                  height={48}
+                  style={{ objectFit: 'cover' }}
+                  className="w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between">
+                <div>
+                  <span className="font-medium text-sm text-gray-800">{item.name}</span>
+                  <span className="ml-1 text-sm bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">x{item.quantity}</span>
+                </div>
+                <span className="font-medium text-sm">{formatPrice((item.price || 0) * (item.quantity || 1))}</span>
+              </div>
+
+              {/* Opciones seleccionadas */}
+              {item.selected_options && item.selected_options.length > 0 && (
+                <div className="mt-1">
+                  {item.selected_options.map((option, optIdx) =>
+                    option.selected_items.length > 0 && (
+                      <div key={optIdx} className="text-xs text-gray-500 flex items-center">
+                        <span className="w-1 h-1 bg-gray-300 rounded-full mr-1"></span>
+                        {option.option_name}: {option.selected_items.map(i => i.item_name).join(', ')}
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Costos */}
+      <div className="space-y-2 py-4 border-t border-b border-gray-100">
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">Subtotal</span>
+          <span>{formatPrice(calculateTotal())}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">Impuestos (19%)</span>
+          <span>{formatPrice(calculateTax())}</span>
+        </div>
+
+        <div className="flex justify-between text-sm">
+          <span className="text-gray-600">
+            {deliveryMethod === 'delivery' ? 'Costo de envío' : 'Retiro en tienda'}
+          </span>
+          <span className={deliveryMethod === 'pickup' ? 'text-green-500 font-medium' : ''}>
+            {deliveryMethod === 'delivery'
+              ? formatPrice(calculateShippingCost())
+              : 'Gratis'
+            }
+          </span>
+        </div>
+      </div>
+
+      {/* Total */}
+      <div className="flex justify-between pt-4 pb-2">
+        <span className="font-bold text-lg">Total</span>
+        <span className="font-bold text-xl text-green-600">{formatPrice(finalTotal)}</span>
+      </div>
+
+      {/* Acuerdo de términos */}
+      <div className="mt-4 mb-6 text-xs text-gray-500">
+        Al realizar esta compra, aceptas nuestros <a href="#" className="text-green-600 underline">Términos y Condiciones</a> y <a href="#" className="text-green-600 underline">Política de Privacidad</a>.
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header moderno con efecto de glass */}
@@ -399,12 +519,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Botón para mostrar/ocultar resumen en mobile - MODIFICADO */}
+      {/* Botón para mostrar el resumen en mobile */}
       {isMobile && (
         <div className="sticky top-[100px] z-40 px-4 mb-2">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={() => setShowSummary(!showSummary)}
+            onClick={() => setShowSummaryModal(true)}
             className="w-full bg-white shadow-md rounded-xl p-3 flex items-center justify-between"
           >
             <div className="flex items-center">
@@ -415,14 +535,21 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             </div>
             <div className="flex items-center">
               <span className="font-bold text-lg mr-2">{formatPrice(finalTotal)}</span>
-              <ChevronDown
-                size={18}
-                className={`transition-transform transform ${showSummary ? 'rotate-180' : ''}`}
-              />
+              <ChevronDown size={18} />
             </div>
           </motion.button>
         </div>
       )}
+
+      {/* Modal del resumen para móvil (usando el nuevo componente NoSwipeModal) */}
+      <NoSwipeModal
+        isOpen={showSummaryModal}
+        onClose={() => setShowSummaryModal(false)}
+        title="Resumen del pedido"
+        showCloseButton={true}
+      >
+        <OrderSummaryContent />
+      </NoSwipeModal>
 
       <form onSubmit={handleSubmit} className="max-w-4xl mx-auto p-4 pb-32">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -899,8 +1026,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
             </motion.div>
           </div>
 
-          {/* Columna derecha - Resumen del pedido - MODIFICADO */}
-          <div className="md:col-span-5">
+          {/* Columna derecha - Resumen del pedido para escritorio */}
+          <div className="md:col-span-5 hidden md:block">
             <AnimatePresence>
               {showSummary && (
                 <motion.div
@@ -908,164 +1035,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
                   className="bg-white p-6 rounded-xl shadow-sm md:sticky md:top-24"
-                  style={{
-                    touchAction: 'pan-y', // Permitir scroll vertical pero desactivar gestos horizontales
-                    WebkitOverflowScrolling: 'touch' // Mejorar scroll en iOS
-                  }}
                 >
-                  {/* Contenedor para prevenir eventos de swipe accidentales */}
-                  <div
-                    className="absolute inset-0 bg-transparent z-10"
-                    onClick={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onTouchMove={(e) => e.stopPropagation()}
-                    onTouchEnd={(e) => e.stopPropagation()}
-                    style={{ pointerEvents: 'none' }}
-                  />
-
-                  <h2 className="text-xl font-bold mb-4 flex items-center relative z-20">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    Resumen del pedido
-
-                    {/* Botón de cerrar visible solo en móviles */}
-                    {isMobile && (
-                      <button
-                        type="button"
-                        onClick={() => setShowSummary(false)}
-                        className="ml-auto text-gray-400 hover:text-gray-600 p-1 relative z-20"
-                        style={{ pointerEvents: 'auto' }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                    )}
-                  </h2>
-
-                  {/* Modo de entrega */}
-                  <div className="flex items-center py-3 border-b border-gray-100 relative z-20">
-                    {deliveryMethod === 'delivery' ? (
-                      <>
-                        <Truck size={20} className="text-green-500 mr-2" />
-                        <span className="font-medium">Envío a domicilio</span>
-                      </>
-                    ) : (
-                      <>
-                        <Store size={20} className="text-green-500 mr-2" />
-                        <span className="font-medium">Retiro en tienda</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Lista de productos - Con scroll independiente */}
-                  <div
-                    className="py-4 max-h-60 overflow-y-auto relative z-20"
-                    style={{
-                      touchAction: 'pan-y', // Permitir solo desplazamiento vertical
-                      pointerEvents: 'auto', // Habilitar interacciones
-                      WebkitOverflowScrolling: 'touch' // Suavizar scroll en iOS
-                    }}
-                  >
-                    {items.map((item, index) => (
-                      <motion.div
-                        key={index}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex py-2 first:pt-0 last:pb-0"
-                      >
-                        <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden mr-3 flex-shrink-0">
-                          {item.image_url ? (
-                            <Image
-                              src={item.image_url}
-                              alt={item.name}
-                              width={48}
-                              height={48}
-                              style={{ objectFit: 'cover' }}
-                              className="w-full h-full"
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between">
-                            <div>
-                              <span className="font-medium text-sm text-gray-800">{item.name}</span>
-                              <span className="ml-1 text-sm bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">x{item.quantity}</span>
-                            </div>
-                            <span className="font-medium text-sm">{formatPrice((item.price || 0) * (item.quantity || 1))}</span>
-                          </div>
-
-                          {/* Opciones seleccionadas */}
-                          {item.selected_options && item.selected_options.length > 0 && (
-                            <div className="mt-1">
-                              {item.selected_options.map((option, optIdx) =>
-                                option.selected_items.length > 0 && (
-                                  <div key={optIdx} className="text-xs text-gray-500 flex items-center">
-                                    <span className="w-1 h-1 bg-gray-300 rounded-full mr-1"></span>
-                                    {option.option_name}: {option.selected_items.map(i => i.item_name).join(', ')}
-                                  </div>
-                                )
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Costos con animación */}
-                  <motion.div
-                    className="space-y-2 py-4 border-t border-b border-gray-100 relative z-20"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Subtotal</span>
-                      <span>{formatPrice(calculateTotal())}</span>
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Impuestos (19%)</span>
-                      <span>{formatPrice(calculateTax())}</span>
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        {deliveryMethod === 'delivery' ? 'Costo de envío' : 'Retiro en tienda'}
-                      </span>
-                      <span className={deliveryMethod === 'pickup' ? 'text-green-500 font-medium' : ''}>
-                        {deliveryMethod === 'delivery'
-                          ? formatPrice(calculateShippingCost())
-                          : 'Gratis'
-                        }
-                      </span>
-                    </div>
-                  </motion.div>
-
-                  {/* Total */}
-                  <motion.div
-                    className="flex justify-between pt-4 pb-2 relative z-20"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <span className="font-bold text-lg">Total</span>
-                    <span className="font-bold text-xl text-green-600">{formatPrice(finalTotal)}</span>
-                  </motion.div>
-
-                  {/* Acuerdo de términos */}
-                  <div className="mt-4 mb-6 text-xs text-gray-500 relative z-20">
-                    Al realizar esta compra, aceptas nuestros <a href="#" className="text-green-600 underline">Términos y Condiciones</a> y <a href="#" className="text-green-600 underline">Política de Privacidad</a>.
-                  </div>
+                  <OrderSummaryContent />
                 </motion.div>
               )}
             </AnimatePresence>
