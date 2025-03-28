@@ -5,7 +5,7 @@ import { CartView } from '../cart/CartView';
 import { CheckoutPage } from './CheckoutPage';
 import { OrderConfirmation } from './OrderConfirmation';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
+import api from '@/utils/api';
 
 // Interfaces
 interface OptionItem {
@@ -96,30 +96,20 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
       const fetchCommerceData = async () => {
         setIsLoading(true);
         try {
-          // Determinamos la URL base para la API
-          const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tu-api-url.com';
-
           let response;
 
           // Si tenemos un subdominio específico, lo usamos para obtener los datos
           if (subdominio) {
-            response = await axios.get(`${apiBaseUrl}/api/public/${subdominio}`);
+            response = await api.get(`/api/public/${subdominio}`);
             // La API devuelve commerce y categories, pero solo necesitamos commerce
             setCommerceData(response.data.commerce);
+            console.log("Datos del comercio obtenidos:", response.data.commerce);
           } else {
             // Si no hay subdominio, intentamos obtener los datos con el endpoint my-commerce
             // (requiere estar autenticado)
-            const token = localStorage.getItem('token');
-            if (token) {
-              response = await axios.get(`${apiBaseUrl}/api/commerces/my-commerce`, {
-                headers: {
-                  Authorization: `Bearer ${token}`
-                }
-              });
-              setCommerceData(response.data);
-            } else {
-              throw new Error('No hay token de autenticación');
-            }
+            response = await api.get(`/api/commerces/my-commerce`);
+            setCommerceData(response.data);
+            console.log("Datos del comercio propio obtenidos:", response.data);
           }
         } catch (error) {
           console.error('Error al obtener los datos del comercio:', error);
@@ -254,8 +244,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   const handleCompletePurchase = async (orderData: any) => {
     try {
       // Opcionalmente, enviar la orden al backend si tienes un endpoint para ello
-      // const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tu-api-url.com';
-      // const response = await axios.post(`${apiBaseUrl}/api/orders`, orderData);
+      // const response = await api.post(`/api/orders`, orderData);
 
       // Guardar la respuesta para mostrarla en la confirmación
       setOrderCompleted(orderData);
