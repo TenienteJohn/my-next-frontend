@@ -13,7 +13,9 @@ interface Commerce {
   business_name: string;
   subdomain: string;
   logo_url?: string;
+  business_category?: string;
   created_at?: string;
+  working_hours?: string;
 }
 
 export default function AdminCommercesPage() {

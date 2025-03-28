@@ -12,6 +12,7 @@ interface Commerce {
   logo_url?: string;
   business_category?: string;
   created_at?: string;
+  working_hours?: string;
 }
 
 interface CommerceEditModalProps {
@@ -28,10 +29,11 @@ interface ApiErrorResponse {
 export default function CommerceEditModal({ commerce, onClose, onUpdate }: CommerceEditModalProps) {
   // MANTENER EL CÓDIGO ORIGINAL
   const [formData, setFormData] = useState({
-    business_name: commerce.business_name,
-    subdomain: commerce.subdomain,
-    business_category: commerce.business_category || '',
-  });
+      business_name: commerce.business_name,
+      subdomain: commerce.subdomain,
+      business_category: commerce.business_category || '',
+      working_hours: commerce.working_hours || '',
+    });
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -215,17 +217,34 @@ export default function CommerceEditModal({ commerce, onClose, onUpdate }: Comme
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Categoría
-              </label>
-              <input
-                type="text"
-                name="business_category"
-                value={formData.business_category}
-                onChange={handleChange}
-                className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Categoría
+                          </label>
+                          <input
+                            type="text"
+                            name="business_category"
+                            value={formData.business_category}
+                            onChange={handleChange}
+                            className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        Horario de trabajo
+                                      </label>
+                                      <input
+                                        type="text"
+                                        name="working_hours"
+                                        value={formData.working_hours}
+                                        onChange={handleChange}
+                                        className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="Ej: 08:00 hs a 19:00 hs"
+                                      />
+                                      <p className="text-xs text-gray-500 mt-1">
+                                        Formato: 08:00 hs a 19:00 hs, o 07:00 hs a 14:00 hs y de 16:30 hs a 24:00 hs
+                                      </p>
+                                    </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

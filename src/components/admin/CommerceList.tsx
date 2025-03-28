@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import CommerceForm from "./CommerceForm";
 import CommerceEditModal from "./CommerceEditModal";
 import CommerceDetailsModal from "./CommerceDetailsModal";
+import CommerceOwnerEditModal from "./CommerceOwnerEditModal";
 
 interface Commerce {
   id: number;
@@ -14,6 +15,7 @@ interface Commerce {
   logo_url?: string;
   business_category?: string;
   created_at?: string;
+  working_hours?: string;
 }
 
 interface ApiErrorResponse {
@@ -42,9 +44,13 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Nuevo estado para el modal de detalles
+  // Estados para los modales de detalles y edición completa
   const [detailsCommerce, setDetailsCommerce] = useState<Commerce | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+
+  // Nuevo estado para el modal de edición completa (comercio + owner)
+  const [ownerEditCommerce, setOwnerEditCommerce] = useState<Commerce | null>(null);
+  const [showOwnerEditModal, setShowOwnerEditModal] = useState(false);
 
   // Estados para forzar refresco de imágenes
   const [imageVersions, setImageVersions] = useState<Record<number, number>>({});
@@ -191,6 +197,28 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
   const handleDetailsClick = (commerce: Commerce) => {
     setDetailsCommerce(commerce);
     setShowDetailsModal(true);
+  };
+
+  // Manejador para editar los datos completos (comercio + owner)
+  const handleOwnerEditClick = (commerce: Commerce) => {
+    setOwnerEditCommerce(commerce);
+    setShowOwnerEditModal(true);
+  };
+
+  // Manejador para actualizar los datos completos
+  const handleOwnerEditComplete = (updatedCommerce: Commerce) => {
+    // Actualizar el comercio en la lista
+    updateCommerces(prevCommerces =>
+      prevCommerces.map(commerce =>
+        commerce.id === updatedCommerce.id ? updatedCommerce : commerce
+      )
+    );
+
+    setShowOwnerEditModal(false);
+    setOwnerEditCommerce(null);
+
+    // Recargar la lista completa para asegurar consistencia
+    fetchCommerces();
   };
 
   const handleDeleteClick = (commerce: Commerce) => {
@@ -381,15 +409,29 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
               </div>
 
               <div className="flex justify-end space-x-2 mt-4">
-                {/* Nuevo botón para ver detalles completos */}
+                {/* Botón para ver detalles completos */}
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => handleDetailsClick(commerce)}
                   className="px-3 py-1 text-xs text-indigo-600 border border-indigo-600 rounded hover:bg-indigo-50"
+                  title="Ver detalles"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </motion.button>
+
+                {/* Nuevo botón para editar datos completos (comercio + owner) */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => handleOwnerEditClick(commerce)}
+                  className="px-3 py-1 text-xs text-purple-600 border border-purple-600 rounded hover:bg-purple-50"
+                  title="Editar datos completos"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </motion.button>
 
@@ -441,6 +483,15 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
         <CommerceDetailsModal
           commerce={detailsCommerce}
           onClose={() => setShowDetailsModal(false)}
+        />
+      )}
+
+      {/* Modal de edición completa (comercio + owner) */}
+      {showOwnerEditModal && ownerEditCommerce && (
+        <CommerceOwnerEditModal
+          commerce={ownerEditCommerce}
+          onClose={() => setShowOwnerEditModal(false)}
+          onUpdate={handleOwnerEditComplete}
         />
       )}
 
@@ -506,4 +557,3 @@ export default function CommerceList({ commerces: initialCommerces, setCommerces
     </div>
   );
 }
-

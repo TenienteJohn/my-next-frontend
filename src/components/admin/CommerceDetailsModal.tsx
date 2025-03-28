@@ -1,8 +1,10 @@
 'use client';
 import { useState } from 'react';
 import axios from 'axios';
-import { motion } from 'framer-motion';
 import Image from 'next/image';
+
+// Eliminamos la importación de framer-motion que está causando problemas
+// import { motion } from 'framer-motion';
 
 interface Commerce {
   id: number;
@@ -11,6 +13,7 @@ interface Commerce {
   logo_url?: string;
   business_category?: string;
   created_at?: string;
+  working_hours?: string;
 }
 
 interface Owner {
@@ -87,16 +90,15 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
     }
   };
 
+  // Reemplazado motion.div con div normal
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+    <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      style={{ opacity: 1 }}
     >
-      <motion.div
-        initial={{ scale: 0.9, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
+      <div
         className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+        style={{ transform: 'scale(1)' }}
       >
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-t-lg">
           <div className="flex justify-between items-center">
@@ -137,25 +139,21 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   type="button"
                   onClick={onClose}
                   className="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition"
                 >
                   Cancelar
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                </button>
+                <button
                   type="button"
                   onClick={handleAuthenticate}
                   disabled={isLoading || !superuserPassword}
                   className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                 >
                   {isLoading ? 'Verificando...' : 'Ver detalles'}
-                </motion.button>
+                </button>
               </div>
             </div>
           ) : (
@@ -193,21 +191,27 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
                     <p className="text-sm text-gray-600">URL del Logo:</p>
                     <p className="font-medium text-xs break-all">{details?.commerce?.logo_url || "Sin logo"}</p>
                   </div>
-                </div>
+                   {details?.commerce?.working_hours && (
+                     <div className="col-span-2">
+                       <p className="text-sm text-gray-600">Horario de trabajo:</p>
+                       <p className="font-medium">{details.commerce.working_hours}</p>
+                     </div>
+                  )}
 
-                {details?.commerce?.logo_url && (
-                  <div className="mt-4 flex justify-center">
-                    <div className="relative w-40 h-40 bg-white rounded-md overflow-hidden border">
-                      <Image
-                        src={details.commerce.logo_url}
-                        alt={`Logo de ${details.commerce.business_name}`}
-                        fill
-                        sizes="160px"
-                        style={{ objectFit: "contain" }}
-                      />
+                  {details?.commerce?.logo_url && (
+                    <div className="mt-4 flex justify-center">
+                      <div className="relative w-40 h-40 bg-white rounded-md overflow-hidden border">
+                        <Image
+                          src={details.commerce.logo_url}
+                          alt={`Logo de ${details.commerce.business_name}`}
+                          fill
+                          sizes="160px"
+                          style={{ objectFit: "contain" }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Detalles del owner */}
@@ -263,20 +267,18 @@ export default function CommerceDetailsModal({ commerce, onClose }: CommerceDeta
               )}
 
               <div className="flex justify-end pt-4">
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                <button
                   type="button"
                   onClick={onClose}
                   className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
                 >
                   Cerrar
-                </motion.button>
+                </button>
               </div>
             </div>
           )}
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

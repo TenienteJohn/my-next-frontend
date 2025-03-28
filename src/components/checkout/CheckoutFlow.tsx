@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { CartView } from '../cart/CartView';
 import { CheckoutPage } from './CheckoutPage';
+import { OrderConfirmation } from './OrderConfirmation';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
 
 // Interfaces
 interface OptionItem {
@@ -33,15 +35,44 @@ interface Product {
   quantity: number;
 }
 
+// Interfaz para los datos del comercio
+interface CommerceData {
+  id: number;
+  subdomain: string;
+  business_name: string;
+  logo_url?: string;
+  address?: string;
+  phone?: string;
+  owner_name?: string;
+  business_category?: string;
+  banner_url?: string;
+  is_open: boolean;
+  delivery_time?: string;
+  delivery_fee?: number;
+  min_order_value?: number;
+  accepts_delivery: boolean;
+  accepts_pickup: boolean;
+  contact_phone?: string;
+  contact_email?: string;
+  social_instagram?: string;
+  social_facebook?: string;
+  social_whatsapp?: string;
+  working_hours?: string;
+}
+
 interface CheckoutFlowProps {
   // Propiedades opcionales que podrían pasar desde la página principal
   initialDeliveryMethod?: 'delivery' | 'pickup';
   onOrderComplete?: (orderData: any) => void;
+  commerceData?: CommerceData; // Permitir recibir datos del comercio como prop
+  subdominio?: string; // Para obtener los datos del comercio específico
 }
 
 export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   initialDeliveryMethod = 'delivery',
   onOrderComplete,
+  commerceData: initialCommerceData,
+  subdominio,
 }) => {
   const router = useRouter();
 
@@ -50,6 +81,57 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState<'delivery' | 'pickup'>(initialDeliveryMethod);
+  const [commerceData, setCommerceData] = useState<CommerceData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [orderCompleted, setOrderCompleted] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Cargar datos del comercio
+  useEffect(() => {
+    // Si recibimos los datos como prop, los utilizamos
+    if (initialCommerceData) {
+      setCommerceData(initialCommerceData);
+    } else {
+      // De lo contrario, los obtenemos de la API
+      const fetchCommerceData = async () => {
+        setIsLoading(true);
+        try {
+          // Determinamos la URL base para la API
+          const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tu-api-url.com';
+
+          let response;
+
+          // Si tenemos un subdominio específico, lo usamos para obtener los datos
+          if (subdominio) {
+            response = await axios.get(`${apiBaseUrl}/api/public/${subdominio}`);
+            // La API devuelve commerce y categories, pero solo necesitamos commerce
+            setCommerceData(response.data.commerce);
+          } else {
+            // Si no hay subdominio, intentamos obtener los datos con el endpoint my-commerce
+            // (requiere estar autenticado)
+            const token = localStorage.getItem('token');
+            if (token) {
+              response = await axios.get(`${apiBaseUrl}/api/commerces/my-commerce`, {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              });
+              setCommerceData(response.data);
+            } else {
+              throw new Error('No hay token de autenticación');
+            }
+          }
+        } catch (error) {
+          console.error('Error al obtener los datos del comercio:', error);
+          setErrorMessage('No se pudieron cargar los datos del comercio');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchCommerceData();
+    }
+  }, [initialCommerceData, subdominio]);
 
   // Cargar items del carrito desde localStorage al iniciar
   useEffect(() => {
@@ -68,9 +150,9 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
     localStorage.setItem('cart', JSON.stringify(cartItems));
   }, [cartItems]);
 
-  // Calcular el total del carrito
+  // Calcular el total del carrito incluyendo costos de envío si aplica
   const calculateCartTotal = () => {
-    return cartItems.reduce((total, item) => {
+    const itemsTotal = cartItems.reduce((total, item) => {
       let itemPrice = item.price * item.quantity;
 
       if (item.selected_options) {
@@ -83,6 +165,13 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
 
       return total + itemPrice;
     }, 0);
+
+    // Incluir el costo de envío si aplica
+    if (deliveryMethod === 'delivery' && commerceData?.delivery_fee) {
+      return itemsTotal + commerceData.delivery_fee;
+    }
+
+    return itemsTotal;
   };
 
   // Handlers para el carrito
@@ -128,9 +217,6 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
       setCartItems([...cartItems, { ...product, quantity, selected_options: selectedOptions }]);
     }
 
-    // Mostrar notificación o feedback al usuario
-    // ...
-
     // Abrir el carrito
     setIsCartOpen(true);
   };
@@ -165,27 +251,36 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
   };
 
   // Handler para completar la compra
-  const handleCompletePurchase = (orderData: any) => {
-    // Aquí procesaríamos la orden, enviaríamos a la API, etc.
-    console.log('Orden completada:', orderData);
+  const handleCompletePurchase = async (orderData: any) => {
+    try {
+      // Opcionalmente, enviar la orden al backend si tienes un endpoint para ello
+      // const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://tu-api-url.com';
+      // const response = await axios.post(`${apiBaseUrl}/api/orders`, orderData);
 
-    // Limpiar el carrito
-    setCartItems([]);
+      // Guardar la respuesta para mostrarla en la confirmación
+      setOrderCompleted(orderData);
 
-    // Cerrar el checkout
-    setIsCheckoutOpen(false);
+      // Limpiar el carrito
+      setCartItems([]);
+      localStorage.removeItem('cart');
 
-    // Si hay callback de orden completada, llamarlo
-    if (onOrderComplete) {
-      onOrderComplete(orderData);
+      // Cerrar el checkout
+      setIsCheckoutOpen(false);
+
+      // Si hay callback de orden completada, llamarlo
+      if (onOrderComplete) {
+        onOrderComplete(orderData);
+      }
+    } catch (error) {
+      console.error('Error al procesar la orden:', error);
+      setErrorMessage('Error al procesar tu pedido. Por favor intenta nuevamente.');
     }
-
-    // Redireccionar a confirmación o mostrar mensaje
-    // router.push('/order-success');
-
-    // O mostrar un mensaje temporal y volver a la página principal
-    alert('¡Gracias por tu compra! Tu pedido ha sido procesado correctamente.');
   };
+
+  // Renderizar el componente correspondiente según el estado actual
+  if (orderCompleted) {
+    return <OrderConfirmation orderData={orderCompleted} onGoBack={() => setOrderCompleted(null)} />;
+  }
 
   // Renderizar el flujo de checkout
   return (
@@ -207,6 +302,7 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
           deliveryMethod={deliveryMethod}
           onGoBack={handleGoBackToCart}
           onCompletePurchase={handleCompletePurchase}
+          commerceData={commerceData} // Pasar los datos del comercio
         />
       )}
 
@@ -222,12 +318,28 @@ export const CheckoutFlow: React.FC<CheckoutFlowProps> = ({
             </div>
             <span className="font-bold">Ver carrito</span>
             <span className="font-bold">
-              {new Intl.NumberFormat('es-CL', {
+              {new Intl.NumberFormat('es-AR', {
                 style: 'currency',
-                currency: 'CLP',
+                currency: 'ARS',
                 minimumFractionDigits: 0
               }).format(calculateCartTotal())}
             </span>
+          </button>
+        </div>
+      )}
+
+      {/* Mensaje de error si ocurre algún problema */}
+      {errorMessage && (
+        <div className="fixed top-5 left-0 right-0 z-50 mx-auto w-11/12 max-w-md bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          <span className="block sm:inline">{errorMessage}</span>
+          <button
+            className="absolute top-0 bottom-0 right-0 px-4 py-3"
+            onClick={() => setErrorMessage(null)}
+          >
+            <span className="sr-only">Cerrar</span>
+            <svg className="h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"></path>
+            </svg>
           </button>
         </div>
       )}

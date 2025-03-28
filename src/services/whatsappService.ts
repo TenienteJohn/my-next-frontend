@@ -72,64 +72,64 @@ export const generateWhatsAppMessage = (orderData: WhatsAppOrderData): string =>
     message += `*Dirección:* ${orderData.deliveryAddress.street} ${orderData.deliveryAddress.number}`;
     if (orderData.deliveryAddress.apartment) message += `, ${orderData.deliveryAddress.apartment}`;
     if (orderData.deliveryAddress.city) message += `, ${orderData.deliveryAddress.city}`;
-    message += '\n';
-    if (orderData.deliveryAddress.reference) message += `*Referencia:* ${orderData.deliveryAddress.reference}\n`;
-  }
+                                                                                          message += '\n';
+                                                                                          if (orderData.deliveryAddress.reference) message += `*Referencia:* ${orderData.deliveryAddress.reference}\n`;
+                                                                                        }
 
-  // Si es retiro en tienda, incluir fecha y hora
-  if (orderData.deliveryMethod === 'pickup' && orderData.pickup) {
-    const dateFormatted = new Date(orderData.pickup.date).toLocaleDateString('es-AR');
-    message += `*Fecha de retiro:* ${dateFormatted} a las ${orderData.pickup.time}\n`;
-  }
+                                                                                        // Si es retiro en tienda, incluir fecha y hora
+                                                                                        if (orderData.deliveryMethod === 'pickup' && orderData.pickup) {
+                                                                                          const dateFormatted = new Date(orderData.pickup.date).toLocaleDateString('es-AR');
+                                                                                          message += `*Fecha de retiro:* ${dateFormatted} a las ${orderData.pickup.time}\n`;
+                                                                                        }
 
-  message += '\n*Productos:*\n';
+                                                                                        message += '\n*Productos:*\n';
 
-  // Listar productos
-  orderData.items.forEach(item => {
-    message += `• ${item.quantity || 1}x ${item.name} - ${formatPrice((item.price || 0) * (item.quantity || 1))}\n`;
+                                                                                        // Listar productos
+                                                                                        orderData.items.forEach(item => {
+                                                                                          message += `• ${item.quantity || 1}x ${item.name} - ${formatPrice((item.price || 0) * (item.quantity || 1))}\n`;
 
-    // Incluir opciones seleccionadas
-    if (item.selected_options && item.selected_options.length > 0) {
-      item.selected_options.forEach(option => {
-        if (option.selected_items.length > 0) {
-          message += `   ↳ ${option.option_name}: ${option.selected_items.map(i => i.item_name).join(', ')}\n`;
-        }
-      });
-    }
-  });
+                                                                                          // Incluir opciones seleccionadas
+                                                                                          if (item.selected_options && item.selected_options.length > 0) {
+                                                                                            item.selected_options.forEach(option => {
+                                                                                              if (option.selected_items.length > 0) {
+                                                                                                message += `   ↳ ${option.option_name}: ${option.selected_items.map(i => i.item_name).join(', ')}\n`;
+                                                                                              }
+                                                                                            });
+                                                                                          }
+                                                                                        });
 
-  message += '\n';
-  message += `*Subtotal:* ${formatPrice(orderData.total - (orderData.shipping || 0))}\n`;
+                                                                                        message += '\n';
+                                                                                        message += `*Subtotal:* ${formatPrice(orderData.total - (orderData.shipping || 0))}\n`;
 
-  // Incluir costo de envío si aplica
-  if (orderData.deliveryMethod === 'delivery' && orderData.shipping && orderData.shipping > 0) {
-    message += `*Costo de envío:* ${formatPrice(orderData.shipping)}\n`;
-  }
+                                                                                        // Incluir costo de envío si aplica
+                                                                                        if (orderData.deliveryMethod === 'delivery' && orderData.shipping && orderData.shipping > 0) {
+                                                                                          message += `*Costo de envío:* ${formatPrice(orderData.shipping)}\n`;
+                                                                                        }
 
-  message += `*Total:* ${formatPrice(orderData.total)}\n\n`;
+                                                                                        message += `*Total:* ${formatPrice(orderData.total)}\n\n`;
 
-  // Método de pago
-  const paymentMethodText = orderData.paymentMethod === 'mercado_pago'
-    ? '💳 MercadoPago'
-    : '💵 Efectivo';
-  message += `*Método de pago:* ${paymentMethodText}\n`;
+                                                                                        // Método de pago
+                                                                                        const paymentMethodText = orderData.paymentMethod === 'mercado_pago'
+                                                                                          ? '💳 MercadoPago'
+                                                                                          : '💵 Efectivo';
+                                                                                        message += `*Método de pago:* ${paymentMethodText}\n`;
 
-  return encodeURIComponent(message);
-};
+                                                                                        return encodeURIComponent(message);
+                                                                                      };
 
-/**
- * Genera un enlace completo de WhatsApp para enviar el pedido
- */
-export const generateWhatsAppLink = (phoneNumber: string, orderData: WhatsAppOrderData): string => {
-  const formattedPhone = formatPhoneForWhatsApp(phoneNumber);
-  const message = generateWhatsAppMessage(orderData);
+                                                                                      /**
+                                                                                       * Genera un enlace completo de WhatsApp para enviar el pedido
+                                                                                       */
+                                                                                      export const generateWhatsAppLink = (phoneNumber: string, orderData: WhatsAppOrderData): string => {
+                                                                                        const formattedPhone = formatPhoneForWhatsApp(phoneNumber);
+                                                                                        const message = generateWhatsAppMessage(orderData);
 
-  return `https://wa.me/${formattedPhone}?text=${message}`;
-};
+                                                                                        return `https://wa.me/${formattedPhone}?text=${message}`;
+                                                                                      };
 
-export default {
-  formatPhoneForWhatsApp,
-  formatPrice,
-  generateWhatsAppMessage,
-  generateWhatsAppLink
-};
+                                                                                      export default {
+                                                                                        formatPhoneForWhatsApp,
+                                                                                        formatPrice,
+                                                                                        generateWhatsAppMessage,
+                                                                                        generateWhatsAppLink
+                                                                                      };

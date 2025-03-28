@@ -15,6 +15,7 @@ interface CommerceDataForm {
   owner_address: string;     // Se usará para address
   owner_phone: string;       // Se usará para phone
   business_category?: string;
+  working_hours?: string;    // Nuevo campo para horario de trabajo
 }
 
 interface Commerce {
@@ -24,6 +25,7 @@ interface Commerce {
   logo_url?: string;
   business_category?: string;
   created_at?: string;
+  working_hours?: string;
   // Otros campos que pueda tener tu objeto Commerce
 }
 
@@ -52,16 +54,17 @@ interface CommerceFormProps {
 
 export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
   const [formData, setFormData] = useState<CommerceDataForm>({
-    commerceName: '',
-    subdomain: '',
-    owner_email: '',
-    owner_password: '',
-    owner_name: '',
-    owner_lastname: '',
-    owner_address: '',
-    owner_phone: '',
-    business_category: '',
-  });
+      commerceName: '',
+      subdomain: '',
+      owner_email: '',
+      owner_password: '',
+      owner_name: '',
+      owner_lastname: '',
+      owner_address: '',
+      owner_phone: '',
+      business_category: '',
+      working_hours: '',
+    });
 
   // Estado para validación de campos
   const [validation, setValidation] = useState<ValidationState>({
@@ -310,16 +313,17 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
 
       // Mapeo de campos del formulario a los nombres que espera el backend
       const payload = {
-        business_name: formData.commerceName,
-        subdomain: formData.subdomain,
-        owner_email: formData.owner_email,
-        owner_password: formData.owner_password,
-        first_name: formData.owner_name,
-        last_name: formData.owner_lastname,
-        address: formData.owner_address,
-        phone: formData.owner_phone,
-        business_category: formData.business_category,
-      };
+              business_name: formData.commerceName,
+              subdomain: formData.subdomain,
+              owner_email: formData.owner_email,
+              owner_password: formData.owner_password,
+              first_name: formData.owner_name,
+              last_name: formData.owner_lastname,
+              address: formData.owner_address,
+              phone: formData.owner_phone,
+              business_category: formData.business_category,
+              working_hours: formData.working_hours,
+            };
 
       // Loguear el payload para depuración
       console.log("Enviando payload:", payload);
@@ -341,16 +345,17 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
         // Reiniciar el formulario después de un tiempo
         setTimeout(() => {
           setFormData({
-            commerceName: '',
-            subdomain: '',
-            owner_email: '',
-            owner_password: '',
-            owner_name: '',
-            owner_lastname: '',
-            owner_address: '',
-            owner_phone: '',
-            business_category: '',
-          });
+                      commerceName: '',
+                      subdomain: '',
+                      owner_email: '',
+                      owner_password: '',
+                      owner_name: '',
+                      owner_lastname: '',
+                      owner_address: '',
+                      owner_phone: '',
+                      business_category: '',
+                      working_hours: '',
+                    });
           setStep(1);
           setFormSubmitted(false);
         }, 2000);
@@ -596,6 +601,25 @@ export default function CommerceForm({ onCommerceCreated }: CommerceFormProps) {
                     required
                   />
                 </div>
+
+                <div>
+                                  <label htmlFor="working_hours" className="block text-sm font-medium text-gray-700 mb-1">
+                                    Horario de trabajo
+                                  </label>
+                                  <motion.input
+                                    whileFocus={{ scale: 1.01 }}
+                                    transition={{ type: "spring", stiffness: 300 }}
+                                    id="working_hours"
+                                    name="working_hours"
+                                    placeholder="Ej: 08:00 hs a 19:00 hs"
+                                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    value={formData.working_hours}
+                                    onChange={handleChange}
+                                  />
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    Formato: 08:00 hs a 19:00 hs, o 07:00 hs a 14:00 hs y de 16:30 hs a 24:00 hs
+                                  </p>
+                                </div>
 
                 <div className="pt-4 flex justify-end">
                   <motion.button
