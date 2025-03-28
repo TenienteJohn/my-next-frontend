@@ -126,6 +126,33 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
     }
   };
 
+  // Versión mejorada con detección de iOS
+  const handleWhatsAppClick = () => {
+    if (!whatsappUrl) {
+      alert('No se pudo generar el enlace a WhatsApp. Por favor, contacta directamente al comercio.');
+      return;
+    }
+
+    // Detectar si es iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+    if (isIOS) {
+      // En iOS, usar window.location.href en lugar de window.open para evitar la página en blanco
+      window.location.href = whatsappUrl;
+
+      // Opcional: Después de un corto retraso, redirigir de vuelta a la tienda
+      // Esto evitará una página en blanco cuando WhatsApp se abra y el usuario vuelva al navegador
+      setTimeout(() => {
+        if (onGoBack) {
+          onGoBack();
+        }
+      }, 500); // Medio segundo debería ser suficiente para que la redirección a WhatsApp comience
+    } else {
+      // En otros dispositivos, seguir usando window.open
+      window.open(whatsappUrl, '_blank');
+    }
+  };
+
   // Manejar compartir pedido
   const handleShare = async () => {
     const orderSummary = `Pedido #${order.id} en ${order.commerce?.business_name || 'Mi Tienda'} - ${formatDate(order.date)}`;
