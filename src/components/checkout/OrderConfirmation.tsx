@@ -124,27 +124,29 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Convertir el enlace wa.me a un enlace de esquema directo para móviles
-    const directWhatsappUrl = whatsappUrl.replace('https://wa.me/', 'whatsapp://send?phone=');
+    // Detectar si estamos en Chrome para iOS
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isChrome = /CriOS/.test(navigator.userAgent);
 
-    // Intentar abrir con el enlace directo primero
-    const directLinkTimeout = setTimeout(() => {
-      // Si fallamos al abrir con el enlace directo (después de 1500ms), usar el método tradicional
-      window.location.href = whatsappUrl;
-    }, 1500);
-
-    // Detectar cuando la ventana pierde el foco (señal de que WhatsApp se abrió)
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        clearTimeout(directLinkTimeout);
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
+    // Solo para Chrome en iOS, cambiamos el comportamiento
+    if (isIOS && isChrome) {
+      // 1. Primero cerramos el modal de confirmación para evitar que quede abierto
+      if (onGoBack) {
+        onGoBack();
       }
-    };
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+      // 2. Esperamos un momento para asegurarnos de que el modal se cerró
+      setTimeout(() => {
+        // 3. Reemplazamos la página actual con WhatsApp (la clave del éxito)
+        window.location.href = whatsappUrl;
 
-    // Probar el enlace directo
-    window.location.href = directWhatsappUrl;
+        // No necesitamos hacer nada más, ya que la página se reemplazará
+      }, 300);
+    } else {
+      // Para otros navegadores seguimos usando window.open
+      // ya que funciona bien y mantiene al usuario en la página
+      window.open(whatsappUrl, '_blank');
+    }
   };
 
   // Manejar compartir pedido
