@@ -124,39 +124,28 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Guardar que ya se ha completado el pedido en sessionStorage
-    sessionStorage.setItem('orderCompleted', 'true');
+    // Convertir el enlace wa.me a un enlace de esquema directo para móviles
+    const directWhatsappUrl = whatsappUrl.replace('https://wa.me/', 'whatsapp://send?phone=');
 
-    // Navegar a WhatsApp (esto abandonará la página actual)
-    window.location.href = whatsappUrl;
+    // Intentar abrir con el enlace directo primero
+    const directLinkTimeout = setTimeout(() => {
+      // Si fallamos al abrir con el enlace directo (después de 1500ms), usar el método tradicional
+      window.location.href = whatsappUrl;
+    }, 1500);
 
-    // No es necesario código adicional aquí, ya que la página se abandona
+    // Detectar cuando la ventana pierde el foco (señal de que WhatsApp se abrió)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(directLinkTimeout);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Probar el enlace directo
+    window.location.href = directWhatsappUrl;
   };
-
-  // Añadir al componente UseEffect para manejar el retorno del usuario
-  useEffect(() => {
-    // Verificar si el usuario está volviendo después de un pedido completado
-    const orderCompleted = sessionStorage.getItem('orderCompleted') === 'true';
-
-    if (orderCompleted) {
-      // Limpiar el indicador
-      sessionStorage.removeItem('orderCompleted');
-
-      // Redireccionar a la página principal del comercio con un pequeño retraso
-      setTimeout(() => {
-        // Obtener el subdominio actual
-        const hostname = window.location.hostname;
-        const subdomain = hostname.split('.')[0];
-
-        if (subdomain && subdomain !== 'www' && !hostname.includes('localhost')) {
-          window.location.href = `https://${subdomain}.menunube.online`;
-        } else {
-          // Fallback para desarrollo local
-          router.push('/');
-        }
-      }, 100);
-    }
-  }, []);
 
   // Manejar compartir pedido
   const handleShare = async () => {
