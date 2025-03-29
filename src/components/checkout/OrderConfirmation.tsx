@@ -124,27 +124,39 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Detectar si estamos en Chrome para iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const isChrome = /CriOS/.test(navigator.userAgent);
+    // Detectar si estamos en un dispositivo móvil
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    // Solo para Chrome en iOS, cambiamos el comportamiento
-    if (isIOS && isChrome) {
-      // 1. Primero cerramos el modal de confirmación para evitar que quede abierto
+    if (isMobile) {
+      // Convertir la URL de wa.me a whatsapp://
+      // Ejemplo: https://wa.me/123456789?text=Hola
+      // se convierte en whatsapp://send?phone=123456789&text=Hola
+
+      let mobileWhatsappUrl = whatsappUrl;
+
+      if (whatsappUrl.includes('wa.me')) {
+        // Extraer el número y el texto del mensaje
+        const waMatch = whatsappUrl.match(/wa\.me\/([0-9]+)(\?text=(.*))?/);
+        if (waMatch) {
+          const phoneNumber = waMatch[1];
+          const messageText = waMatch[3] ? waMatch[3] : '';
+
+          // Crear la URL específica para aplicaciones móviles
+          mobileWhatsappUrl = `whatsapp://send?phone=${phoneNumber}&text=${messageText}`;
+        }
+      }
+
+      // Cerrar el modal primero si es necesario
       if (onGoBack) {
         onGoBack();
       }
 
-      // 2. Esperamos un momento para asegurarnos de que el modal se cerró
+      // Esperar un momento para que se cierre el modal y luego abrir WhatsApp
       setTimeout(() => {
-        // 3. Reemplazamos la página actual con WhatsApp (la clave del éxito)
-        window.location.href = whatsappUrl;
-
-        // No necesitamos hacer nada más, ya que la página se reemplazará
+        window.location.href = mobileWhatsappUrl;
       }, 300);
     } else {
-      // Para otros navegadores seguimos usando window.open
-      // ya que funciona bien y mantiene al usuario en la página
+      // En desktop, seguir usando window.open con la URL original
       window.open(whatsappUrl, '_blank');
     }
   };
