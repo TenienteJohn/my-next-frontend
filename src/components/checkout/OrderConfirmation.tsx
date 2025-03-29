@@ -124,16 +124,39 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Primero cerramos el modal
-    if (onGoBack) {
-      onGoBack();
-    }
+    // Guardar que ya se ha completado el pedido en sessionStorage
+    sessionStorage.setItem('orderCompleted', 'true');
 
-    // Después de un pequeño retraso, abrimos WhatsApp
-    setTimeout(() => {
-      window.location.href = whatsappUrl;
-    }, 300);
+    // Navegar a WhatsApp (esto abandonará la página actual)
+    window.location.href = whatsappUrl;
+
+    // No es necesario código adicional aquí, ya que la página se abandona
   };
+
+  // Añadir al componente UseEffect para manejar el retorno del usuario
+  useEffect(() => {
+    // Verificar si el usuario está volviendo después de un pedido completado
+    const orderCompleted = sessionStorage.getItem('orderCompleted') === 'true';
+
+    if (orderCompleted) {
+      // Limpiar el indicador
+      sessionStorage.removeItem('orderCompleted');
+
+      // Redireccionar a la página principal del comercio con un pequeño retraso
+      setTimeout(() => {
+        // Obtener el subdominio actual
+        const hostname = window.location.hostname;
+        const subdomain = hostname.split('.')[0];
+
+        if (subdomain && subdomain !== 'www' && !hostname.includes('localhost')) {
+          window.location.href = `https://${subdomain}.menunube.online`;
+        } else {
+          // Fallback para desarrollo local
+          router.push('/');
+        }
+      }, 100);
+    }
+  }, []);
 
   // Manejar compartir pedido
   const handleShare = async () => {
