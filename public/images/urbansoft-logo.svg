@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <!-- Fondo con gradiente -->
+    <defs>
+        <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#06b6d4" />
+            <stop offset="100%" stop-color="#7e22ce" />
+        </linearGradient>
+    </defs>
+
+    <!-- Forma base (cuadrado redondeado) -->
+    <rect width="512" height="512" rx="80" ry="80" fill="url(#gradient)" />
+
+    <!-- Estrella/logo de UrbanSoft -->
+    <polygon points="256 96 290 200 400 215 325 290 345 400 256 340 167 400 187 290 112 215 222 200 256 96"
+             fill="white" stroke="white" stroke-width="12" stroke-linejoin="round" />
+</svg>
