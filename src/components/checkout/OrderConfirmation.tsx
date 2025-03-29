@@ -124,22 +124,29 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Detectar si es iOS
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    // Detectar si estamos en un dispositivo móvil
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
-    if (isIOS) {
-      // En iOS, usar window.location.href en lugar de window.open para evitar la página en blanco
-      window.location.href = whatsappUrl;
+    if (isMobile) {
+      // En dispositivos móviles, usar un iframe oculto para evitar la página en blanco
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
 
-      // Opcional: Después de un corto retraso, redirigir de vuelta a la tienda
-      // Esto evitará una página en blanco cuando WhatsApp se abra y el usuario vuelva al navegador
-      setTimeout(() => {
-        if (onGoBack) {
-          onGoBack();
-        }
-      }, 500); // Medio segundo debería ser suficiente para que la redirección a WhatsApp comience
+      // Usar el iframe para la redirección
+      iframe.onload = () => {
+        // Eliminar el iframe después de un tiempo
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 2000);
+      };
+
+      // Iniciar la redirección
+      iframe.src = whatsappUrl;
     } else {
-      // En otros dispositivos, seguir usando window.open
+      // En desktop, seguir usando window.open
       window.open(whatsappUrl, '_blank');
     }
   };
