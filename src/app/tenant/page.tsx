@@ -84,6 +84,7 @@ interface Commerce {
   social_instagram?: string;
   social_facebook?: string;
   social_whatsapp?: string;
+  working_hours?: string;
 }
 
 export default function TenantLandingPage() {
@@ -413,18 +414,18 @@ export default function TenantLandingPage() {
   }, 0);
 
   // Formato para el precio con validación de nulos
-  const formatPrice = (price: number | null | undefined) => {
-    // Si el precio es null o undefined, devolvemos un valor predeterminado
-    if (price === null || price === undefined) {
-      return '$0';
-    }
+   const formatPrice = (price: number | string | null | undefined) => {
+     // Si el precio es null o undefined, devolvemos un valor predeterminado
+     if (price === null || price === undefined) {
+       return '$0';
+     }
 
-    return price.toLocaleString('es-CL', {
-      style: 'currency',
-      currency: 'CLP',
-      minimumFractionDigits: 0
-    }).replace('CLP', '$').replace('.', ',');
-  };
+     // Convertir a número si es string (esto manejará casos como "100.00")
+     const numericPrice = typeof price === 'string' ? Number(price) : price;
+
+     // Formatear el precio sin decimales
+     return `$ ${Math.round(numericPrice)}`;
+   };
 
   if (loading) {
     return (
@@ -621,12 +622,14 @@ export default function TenantLandingPage() {
 
             <div className="flex flex-col items-center">
               <div className="flex items-center text-gray-400 mb-0.5">
-                <span className="text-xs mr-1">Calificación</span>
+                <span className="text-xs mr-1">Horario</span>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <p className="font-bold text-base">4.4 <span className="text-xs text-gray-400">(617)</span></p>
+              <p className="font-bold text-[10px] leading-tight text-center max-w-[100px]">
+                {commerce.working_hours}
+              </p>
             </div>
           </div>
         </div>
@@ -813,7 +816,7 @@ export default function TenantLandingPage() {
       <footer className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 text-center text-gray-500 text-xs z-10">
         <p>© {new Date().getFullYear()} {commerce.business_name}</p>
         <p className="mt-1">
-          Desarrollado por <a href="https://cartaenlinea.com" className="text-blue-500">CartaEnLinea</a>
+          Desarrollado por <a href="https://menunube.online" className="text-blue-500">UrbanSoft®</a>
         </p>
       </footer>
 

@@ -771,185 +771,96 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                                       : `w-6 h-6 border ${isItemSelected(option.id, item.id) ? 'border-2 border-black' : 'border-gray-300'} rounded-full flex items-center justify-center`
                                   }`}
                                   onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!isDisabled) {
-                                      handleOptionSelect(option, item);
-                                    }
-                                  }}
-                                >
-                                  {option.multiple && isItemSelected(option.id, item.id) && (
-                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                                                        </svg>
-                                                                      )}
-                                                                      {!option.multiple && isItemSelected(option.id, item.id) && (
-                                                                        <div className="w-3 h-3 bg-black rounded-full"></div>
-                                                                      )}
-                                                                    </motion.div>
+                                                                      e.stopPropagation();
+                                                                      if (!isDisabled) {
+                                                                        handleOptionSelect(option, item);
+                                                                      }
+                                                                    }}
+                                                                  >
+                                                                    {option.multiple && isItemSelected(option.id, item.id) && (
+                                                                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                                                                      </svg>
+                                                                    )}
+                                                                    {!option.multiple && isItemSelected(option.id, item.id) && (
+                                                                      <div className="w-3 h-3 bg-black rounded-full"></div>
+                                                                    )}
                                                                   </motion.div>
-                                                                );
-                                                              })}
-                                                            </div>
-                                                          </motion.div>
-                                                        )}
-                                                      </AnimatePresence>
-                                                    </motion.div>
-                                                  ))}
-
-                                                  {/* Sección de complementos (opcional) */}
-                                                  <motion.div
-                                                    className="bg-white"
-                                                    initial={{ opacity: 0, y: 10 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    transition={{ duration: 0.2, delay: 0.1 }}
-                                                  >
-                                                    <div
-                                                      className="flex justify-between items-center px-5 py-4 cursor-pointer"
-                                                      onClick={() => toggleOption(9999)}
-                                                    >
-                                                      <div>
-                                                        <h2 className="text-xl font-bold text-gray-900">Complementa tu pedido</h2>
-                                                        <p className="text-gray-500 text-sm">Opcional</p>
-                                                      </div>
-                                                      <motion.div
-                                                        animate={{ rotate: expandedOptions[9999] ? 180 : 0 }}
-                                                        transition={{ duration: 0.2, type: 'tween' }}
-                                                        className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center"
-                                                      >
-                                                        <ChevronDown size={20} className="text-gray-700" />
-                                                      </motion.div>
-                                                    </div>
-                                                    <AnimatePresence>
-                                                      {expandedOptions[9999] && (
-                                                        <motion.div
-                                                          initial={{ height: 0, opacity: 0 }}
-                                                          animate={{ height: 'auto', opacity: 1 }}
-                                                          exit={{ height: 0, opacity: 0 }}
-                                                          transition={{ duration: 0.2 }}
-                                                          className="px-5 overflow-hidden"
-                                                        >
-                                                          <div className="pb-4 space-y-2">
-                                                            <motion.div
-                                                              initial={{ opacity: 0, y: 5 }}
-                                                              animate={{ opacity: 1, y: 0 }}
-                                                              className="flex items-center justify-between py-3 px-3 rounded-xl border border-gray-100 hover:border-gray-200"
-                                                            >
-                                                              <div className="flex items-center">
-                                                                <div className="w-14 h-14 bg-gray-100 rounded-lg mr-3 overflow-hidden">
-                                                                  <img
-                                                                    src="/api/placeholder/60/60"
-                                                                    alt="Complemento 1"
-                                                                    className="w-full h-full object-cover"
-                                                                  />
-                                                                </div>
-                                                                <div>
-                                                                  <div className="flex items-center">
-                                                                    <span className="text-lg font-medium text-gray-800">Complemento 1</span>
-                                                                    <div className="ml-2 flex flex-wrap gap-1">
-                                                                      <Tag
-                                                                        key="popular-tag"
-                                                                        name="Popular"
-                                                                        color="#10b981"
-                                                                        textColor="#FFFFFF"
-                                                                        size="xs"
-                                                                      />
-                                                                    </div>
-                                                                  </div>
-                                                                  <div className="text-gray-500">
-                                                                    +{formatPrice(10000)}
-                                                                  </div>
-                                                                </div>
-                                                              </div>
-                                                              {/* Control de cantidad para complementos */}
-                                                              <motion.div
-                                                                whileTap={{ scale: 0.95 }}
-                                                                className={`w-6 h-6 border ${isItemSelected(9999, 1001) ? 'bg-black border-black' : 'border-gray-300'} rounded-md flex items-center justify-center`}
-                                                                onClick={() => {
-                                                                  // Manejar la selección del complemento
-                                                                  handleOptionSelect(
-                                                                    { id: 9999, name: 'Complementos', required: false, multiple: true, items: [] },
-                                                                    { id: 1001, name: 'Complemento 1', price_addition: 10000, available: true }
-                                                                  );
-                                                                }}
-                                                              >
-                                                                {isItemSelected(9999, 1001) && (
-                                                                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                                                                  </svg>
-                                                                )}
-                                                              </motion.div>
-                                                            </motion.div>
+                                                                </motion.div>
+                                                              );
+                                                            })}
                                                           </div>
                                                         </motion.div>
                                                       )}
                                                     </AnimatePresence>
                                                   </motion.div>
-                                                </div>
+                                                ))}
+                                              </div>
 
-                                                {/* Mostrar errores de validación */}
-                                                <AnimatePresence>
-                                                  {Object.keys(validationErrors).length > 0 && (
-                                                    <motion.div
-                                                      initial={{ opacity: 0, y: 10 }}
-                                                      animate={{ opacity: 1, y: 0 }}
-                                                      exit={{ opacity: 0, y: 10 }}
-                                                      className="mx-5 my-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm shadow-sm"
-                                                    >
-                                                      <div className="flex items-center">
-                                                        <svg
-                                                          xmlns="http://www.w3.org/2000/svg"
-                                                          className="h-5 w-5 mr-2 flex-shrink-0"
-                                                          viewBox="0 0 20 20"
-                                                          fill="currentColor"
-                                                        >
-                                                          <path
-                                                            fillRule="evenodd"
-                                                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                                            clipRule="evenodd"
-                                                          />
-                                                        </svg>
-                                                        {Object.values(validationErrors)[0]}
-                                                      </div>
-                                                    </motion.div>
-                                                  )}
-                                                </AnimatePresence>
-
-                                                {/* Botones de control de cantidad y agregar al carrito */}
-                                                <div className="px-5 py-4 flex items-center justify-between sticky bottom-0 bg-white border-t border-gray-100 shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.05)] z-30">
+                                              {/* Mostrar errores de validación */}
+                                              <AnimatePresence>
+                                                {Object.keys(validationErrors).length > 0 && (
                                                   <motion.div
-                                                    whileHover={{ scale: 1.02 }}
-                                                    whileTap={{ scale: 0.98 }}
-                                                    className="flex items-center h-12 rounded-full border border-gray-200 overflow-hidden shadow-sm bg-white"
+                                                    initial={{ opacity: 0, y: 10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: 10 }}
+                                                    className="mx-5 my-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm shadow-sm"
                                                   >
-                                                    <motion.button
-                                                      whileTap={{ scale: 0.9 }}
-                                                      className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                                                      onClick={() => quantity > 1 && setQuantity(quantity - 1)}
-                                                    >
-                                                      <Minus size={20} className="text-gray-700" />
-                                                    </motion.button>
-                                                    <span className="w-10 text-center font-medium">{quantity}</span>
-                                                    <motion.button
-                                                      whileTap={{ scale: 0.9 }}
-                                                      className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
-                                                      onClick={() => setQuantity(quantity + 1)}
-                                                    >
-                                                      <Plus size={20} className="text-gray-700" />
-                                                    </motion.button>
+                                                    <div className="flex items-center">
+                                                      <svg
+                                                        xmlns="http://www.w3.org/2000/svg"
+                                                        className="h-5 w-5 mr-2 flex-shrink-0"
+                                                        viewBox="0 0 20 20"
+                                                        fill="currentColor"
+                                                      >
+                                                        <path
+                                                          fillRule="evenodd"
+                                                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                                          clipRule="evenodd"
+                                                        />
+                                                      </svg>
+                                                      {Object.values(validationErrors)[0]}
+                                                    </div>
                                                   </motion.div>
+                                                )}
+                                              </AnimatePresence>
+
+                                              {/* Botones de control de cantidad y agregar al carrito */}
+                                              <div className="px-5 py-4 flex items-center justify-between sticky bottom-0 bg-white border-t border-gray-100 shadow-[0_-8px_16px_-6px_rgba(0,0,0,0.05)] z-30">
+                                                <motion.div
+                                                  whileHover={{ scale: 1.02 }}
+                                                  whileTap={{ scale: 0.98 }}
+                                                  className="flex items-center h-12 rounded-full border border-gray-200 overflow-hidden shadow-sm bg-white"
+                                                >
                                                   <motion.button
-                                                    whileHover={{ scale: 1.03 }}
-                                                    whileTap={{ scale: 0.95 }}
-                                                    onClick={handleAddToCart}
-                                                    className="bg-gradient-to-r from-green-500 to-green-400 text-white px-6 py-3 rounded-full font-medium text-lg shadow-md hover:shadow-lg transition-all flex items-center space-x-2"
+                                                    whileTap={{ scale: 0.9 }}
+                                                    className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                                    onClick={() => quantity > 1 && setQuantity(quantity - 1)}
                                                   >
-                                                    <span>Agregar</span>
-                                                    <span className="font-bold">{formatPrice(totalPrice)}</span>
+                                                    <Minus size={20} className="text-gray-700" />
                                                   </motion.button>
-                                                </div>
-                                              </motion.div>
+                                                  <span className="w-10 text-center font-medium">{quantity}</span>
+                                                  <motion.button
+                                                    whileTap={{ scale: 0.9 }}
+                                                    className="w-12 h-full flex items-center justify-center bg-gray-50 hover:bg-gray-100 active:bg-gray-200 transition-colors"
+                                                    onClick={() => setQuantity(quantity + 1)}
+                                                  >
+                                                    <Plus size={20} className="text-gray-700" />
+                                                  </motion.button>
+                                                </motion.div>
+                                                <motion.button
+                                                  whileHover={{ scale: 1.03 }}
+                                                  whileTap={{ scale: 0.95 }}
+                                                  onClick={handleAddToCart}
+                                                  className="bg-gradient-to-r from-green-500 to-green-400 text-white px-6 py-3 rounded-full font-medium text-lg shadow-md hover:shadow-lg transition-all flex items-center space-x-2"
+                                                >
+                                                  <span>Agregar</span>
+                                                  <span className="font-bold">{formatPrice(totalPrice)}</span>
+                                                </motion.button>
+                                              </div>
                                             </motion.div>
-                                          )}
-                                        </AnimatePresence>
-                                      );
-                                    };
+                                          </motion.div>
+                                        )}
+                                      </AnimatePresence>
+                                    );
+                                  };

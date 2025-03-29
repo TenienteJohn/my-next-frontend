@@ -25,6 +25,7 @@ interface CommerceSettings {
   social_instagram?: string;
   social_facebook?: string;
   social_whatsapp?: string;
+  working_hours?: string;
 }
 
 interface AxiosError {
@@ -157,7 +158,8 @@ export default function SettingsPage() {
           contact_email: settings.contact_email,
           social_instagram: settings.social_instagram,
           social_facebook: settings.social_facebook,
-          social_whatsapp: settings.social_whatsapp
+          social_whatsapp: settings.social_whatsapp,
+          working_hours: settings.working_hours
         },
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -421,6 +423,19 @@ export default function SettingsPage() {
                     onChange={handleInputChange}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Horario de atención</label>
+                  <input
+                    type="text"
+                    name="working_hours"
+                    value={settings.working_hours || ''}
+                    onChange={handleInputChange}
+                    placeholder="Ej: Lun-Vie: 9:00-18:00, Sáb: 10:00-14:00"
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Formato recomendado: Lun-Vie: 9:00-18:00, Sáb-Dom: 10:00-14:00</p>
                 </div>
 
                 <div className="flex items-center">
