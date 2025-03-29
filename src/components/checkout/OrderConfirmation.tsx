@@ -124,31 +124,15 @@ export const OrderConfirmation: React.FC<OrderConfirmationProps> = ({
       return;
     }
 
-    // Detectar si estamos en un dispositivo móvil
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-    if (isMobile) {
-      // En dispositivos móviles, usar un iframe oculto para evitar la página en blanco
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      document.body.appendChild(iframe);
-
-      // Usar el iframe para la redirección
-      iframe.onload = () => {
-        // Eliminar el iframe después de un tiempo
-        setTimeout(() => {
-          if (document.body.contains(iframe)) {
-            document.body.removeChild(iframe);
-          }
-        }, 2000);
-      };
-
-      // Iniciar la redirección
-      iframe.src = whatsappUrl;
-    } else {
-      // En desktop, seguir usando window.open
-      window.open(whatsappUrl, '_blank');
+    // Primero cerramos el modal
+    if (onGoBack) {
+      onGoBack();
     }
+
+    // Después de un pequeño retraso, abrimos WhatsApp
+    setTimeout(() => {
+      window.location.href = whatsappUrl;
+    }, 300);
   };
 
   // Manejar compartir pedido
